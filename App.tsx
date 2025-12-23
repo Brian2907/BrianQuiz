@@ -4,7 +4,7 @@ import {
   PlusCircle, ArrowRight, BrainCircuit, User as UserIcon, Moon, Sun, 
   Clock, CheckCircle, RotateCcw, Database, Edit3, Save, Trash2, 
   Home, Loader2, Sparkles, Share2, LogOut, ShieldCheck, Trophy, Users,
-  ChevronLeft, AlertCircle, Download, X as CloseIcon, Copy
+  ChevronLeft, AlertCircle, Download, X as CloseIcon, Copy, Zap
 } from 'lucide-react';
 import { AppState, QuizSession, QuizSlot, User, Participant } from './types';
 import QuizEditor from './components/QuizEditor';
@@ -71,20 +71,21 @@ const App: React.FC = () => {
 
   const sounds = useSound();
 
-  // Detection of Import Link
+  // Brian-share Protocol Handler
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const importData = params.get('import');
     if (importData) {
       try {
+        // UTF-8 Base64 Decoding
         const decoded = JSON.parse(decodeURIComponent(escape(atob(importData))));
-        if (decoded && decoded.questions) {
+        if (decoded && decoded.questions && Array.isArray(decoded.questions)) {
           setPendingImport(decoded);
-          // Remove param from URL to keep it clean
+          // Clean URL to prevent re-triggering on refresh
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (e) {
-        console.error("Lỗi giải mã bài tập chia sẻ", e);
+        console.error("Lỗi giải mã gói Brian-share:", e);
       }
     }
 
@@ -171,24 +172,32 @@ const App: React.FC = () => {
 
   const shareSlot = (slot: QuizSlot) => {
     if (!slot.quiz) return;
-    // Encode quiz data into URL
-    const quizData = btoa(unescape(encodeURIComponent(JSON.stringify(slot.quiz))));
-    const url = `${window.location.origin}${window.location.pathname}?import=${quizData}`;
-    navigator.clipboard.writeText(url);
-    alert('Đã tạo liên kết bài tập "Canva-style"! Bạn có thể gửi link này cho bất kỳ ai.');
-    sounds.click();
+    try {
+      // Encode UTF-8 safely into Base64 for URL
+      const quizData = btoa(unescape(encodeURIComponent(JSON.stringify(slot.quiz))));
+      const url = `${window.location.origin}${window.location.pathname}?import=${quizData}`;
+      navigator.clipboard.writeText(url);
+      alert('Đã kích hoạt Brian-share! Liên kết này chứa toàn bộ dữ liệu bài tập của bạn.');
+      sounds.click();
+    } catch (e) {
+      alert('Không thể tạo liên kết chia sẻ. Vui lòng thử lại.');
+    }
   };
 
   const handleImportToSlot = (slotId: number) => {
     if (!pendingImport) return;
     const targetSlot = slots.find(s => s.id === slotId);
-    if (targetSlot?.quiz && !confirm(`Slot "${targetSlot.name}" đã có bài tập. Bạn có muốn ghi đè không?`)) {
-      return;
+    
+    if (targetSlot?.quiz) {
+      if (!confirm(`CẢNH BÁO: Slot "${targetSlot.name}" đang chứa bài tập "${targetSlot.quiz.title}". Bạn có muốn ghi đè bằng bài tập mới không?`)) {
+        return;
+      }
     }
+
     saveToSlot(slotId, pendingImport);
     setPendingImport(null);
     sounds.congrats();
-    alert(`Đã nhập bài tập "${pendingImport.title}" thành công vào ${targetSlot?.name}!`);
+    alert(`Đã nạp bài tập "${pendingImport.title}" thành công vào ${targetSlot?.name}!`);
   };
 
   const renderContent = () => {
@@ -242,7 +251,7 @@ const App: React.FC = () => {
                       />
                       {slot.quiz && (
                         <div className="flex gap-2">
-                          <button onClick={() => shareSlot(slot)} title="Chia sẻ Link (Canva Style)" className="text-blue-500 hover:scale-110 transition-transform p-1"><Share2 size={18} /></button>
+                          <button onClick={() => shareSlot(slot)} title="Brian-share liên kết này" className="text-blue-500 hover:scale-110 transition-transform p-1"><Share2 size={18} /></button>
                           <button onClick={() => { if(confirm('Xóa?')) setSlots(prev => prev.map(s => s.id === slot.id ? {...s, quiz:null, updatedAt:null, participants: []} : s)); }} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={18} /></button>
                         </div>
                       )}
@@ -252,7 +261,7 @@ const App: React.FC = () => {
                         <p className="text-slate-400 text-[10px] font-black mb-4 uppercase tracking-widest">{slot.quiz.questions.length} CÂU • {slot.participants.length} NGƯỜI THI</p>
                         <div className="flex gap-2">
                           <button onClick={() => { setQuiz(slot.quiz); setActiveSlotId(slot.id); setState('EDIT'); setShowLibrary(false); sounds.click(); }} className="flex-1 py-3 bg-slate-100 dark:bg-slate-900 rounded-xl font-black text-xs hover:bg-green-600 hover:text-white transition-all uppercase">Sửa</button>
-                          <button onClick={() => shareSlot(slot)} className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all uppercase flex items-center gap-2"><Share2 size={14} /> Share</button>
+                          <button onClick={() => shareSlot(slot)} className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all uppercase flex items-center gap-2" title="Gửi liên kết Brian-share"><Share2 size={14} /> Share</button>
                         </div>
                       </div>
                     ) : (
@@ -370,14 +379,14 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* BẢNG VÀNG THỐNG KÊ - HIỂN THỊ CHI TIẾT */}
+            {/* BẢNG VÀNG DANH DỰ - HIỂN THỊ CHI TIẾT THEO YÊU CẦU */}
             {currentSlot && (
               <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-xl p-12 border-4 border-slate-50 dark:border-slate-700 fade-in-up" style={{animationDelay: '0.4s'}}>
                 <div className="flex items-center gap-4 mb-10 pb-6 border-b dark:border-slate-700">
                   <div className="p-4 bg-yellow-500 text-white rounded-2xl shadow-lg animate-pulse"><Trophy size={24} /></div>
                   <div>
                     <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Bảng Vàng Danh Dự</h3>
-                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Thành tích bài thi: {currentSlot.quiz?.title}</p>
+                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Lịch sử bài tập: {currentSlot.quiz?.title}</p>
                   </div>
                 </div>
 
@@ -397,13 +406,21 @@ const App: React.FC = () => {
                             }`}>
                               {idx + 1}
                             </span>
-                            <div>
-                              <p className="text-xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors">{p.name}</p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">{p.completedAt} • {currentSlot.quiz?.title}</p>
+                            <div className="flex flex-col">
+                              <p className="text-xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors">
+                                {p.name} <span className="text-slate-400 font-medium text-sm ml-2">— {currentSlot.quiz?.title}</span>
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Clock size={10} className="text-slate-400" />
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.completedAt}</p>
+                              </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className={`text-2xl font-black ${pEval.color}`}>{pScore}</p>
+                            <div className="flex items-center justify-end gap-2">
+                               {idx < 3 && <Sparkles size={16} className="text-yellow-500" />}
+                               <p className={`text-2xl font-black ${pEval.color}`}>{pScore}</p>
+                            </div>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.score}/{p.total} CÂU</p>
                           </div>
                         </div>
@@ -413,7 +430,7 @@ const App: React.FC = () => {
                 ) : (
                   <div className="py-20 text-center border-4 border-dashed border-slate-100 dark:border-slate-700 rounded-3xl">
                     <Database size={48} className="mx-auto text-slate-200 dark:text-slate-700 mb-4 opacity-20" />
-                    <p className="text-slate-400 font-black text-sm uppercase tracking-widest">Hãy là người đầu tiên ghi tên vào bảng vàng!</p>
+                    <p className="text-slate-400 font-black text-sm uppercase tracking-widest">Chưa có ai ghi danh vào bảng vàng này!</p>
                   </div>
                 )}
               </div>
@@ -458,55 +475,69 @@ const App: React.FC = () => {
 
       <main className="mt-16">{renderContent()}</main>
 
-      {/* IMPORT DIALOG (CANVA STYLE) */}
-      {pendingImport && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-6 fade-in">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[4rem] shadow-2xl border-8 border-white dark:border-slate-700 overflow-hidden">
+      {/* BRIAN-SHARE IMPORT DIALOG - LUÔN HIỂN THỊ KHI CÓ DỮ LIỆU CHỜ, TRỪ KHI ĐANG THI */}
+      {pendingImport && state !== 'TAKE' && state !== 'CALCULATING' && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-2xl flex items-center justify-center p-6 fade-in">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[4rem] shadow-2xl border-8 border-white dark:border-slate-700 overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-green-500 to-purple-500"></div>
             <div className="p-12 text-center">
-              <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8">
-                <Download size={48} className="animate-bounce" />
+              <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                <Zap size={48} className="animate-pulse" />
               </div>
-              <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-4 tracking-tighter uppercase">Bạn nhận được bài tập mới!</h2>
-              <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-3xl mb-10 border-2 border-slate-100 dark:border-slate-700">
-                <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">Tên bài tập:</p>
-                <p className="text-3xl font-black text-green-600 mb-4">{pendingImport.title}</p>
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">{pendingImport.questions.length} CÂU HỎI TRONG GÓI CHIA SẺ</p>
+              <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-2 tracking-tighter uppercase">Brian-share Detected!</h2>
+              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mb-10">Bạn vừa nhận được một gói dữ liệu bài tập</p>
+              
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] mb-10 border-4 border-slate-100 dark:border-slate-700 shadow-xl group">
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2">Tiêu đề bài tập:</p>
+                <p className="text-4xl font-black text-blue-600 mb-4 group-hover:scale-105 transition-transform">{pendingImport.title}</p>
+                <div className="flex items-center justify-center gap-4">
+                  <span className="px-4 py-1.5 bg-blue-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest">
+                    {pendingImport.questions.length} CÂU HỎI
+                  </span>
+                  <span className="px-4 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest">
+                    MÃ HÓA UTF-8
+                  </span>
+                </div>
               </div>
               
               <div className="space-y-4">
-                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest text-left px-4">Lưu vào Slot của bạn:</p>
-                <div className="grid grid-cols-1 gap-4">
+                <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.3em] text-left px-4">Chọn nơi lưu trữ trên tài khoản của bạn:</p>
+                <div className="grid grid-cols-1 gap-4 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
                   {slots.map(slot => (
                     <button 
                       key={slot.id}
                       onClick={() => handleImportToSlot(slot.id)}
-                      className="group w-full p-6 bg-slate-50 dark:bg-slate-900 hover:bg-green-600 border-4 border-transparent hover:border-white transition-all rounded-[2rem] flex items-center justify-between"
+                      className="group w-full p-6 bg-slate-50 dark:bg-slate-900 hover:bg-blue-600 border-4 border-transparent hover:border-white transition-all rounded-[2rem] flex items-center justify-between shadow-sm hover:shadow-2xl"
                     >
                       <div className="flex items-center gap-6">
-                        <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center font-black group-hover:text-green-600">{slot.id}</div>
+                        <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center font-black group-hover:text-blue-600 shadow-sm">{slot.id}</div>
                         <div className="text-left">
                           <p className="text-xl font-black text-slate-900 dark:text-white group-hover:text-white">{slot.name}</p>
-                          <p className="text-[10px] font-black text-slate-400 group-hover:text-green-100 uppercase tracking-widest">{slot.quiz ? 'Có sẵn bài tập (Sẽ ghi đè)' : 'Trống - Sẵn sàng'}</p>
+                          <p className={`text-[10px] font-black group-hover:text-blue-100 uppercase tracking-widest ${slot.quiz ? 'text-red-400' : 'text-slate-400'}`}>
+                            {slot.quiz ? `Đang chứa: ${slot.quiz.title}` : 'Slot trống — Sẵn sàng'}
+                          </p>
                         </div>
                       </div>
-                      <Save className="text-slate-300 group-hover:text-white group-hover:animate-bounce" />
+                      <Download className="text-slate-300 group-hover:text-white group-hover:animate-bounce" />
                     </button>
                   ))}
                 </div>
               </div>
 
-              <button 
-                onClick={() => setPendingImport(null)}
-                className="mt-10 text-slate-400 hover:text-red-500 font-black text-sm uppercase tracking-widest transition-colors flex items-center justify-center gap-2 mx-auto"
-              >
-                <CloseIcon size={16} /> HỦY NHẬP DỮ LIỆU
-              </button>
+              <div className="mt-12 flex flex-col gap-4">
+                <button 
+                  onClick={() => setPendingImport(null)}
+                  className="w-full py-4 text-slate-400 hover:text-red-500 font-black text-sm uppercase tracking-widest transition-colors flex items-center justify-center gap-2 border-2 border-transparent hover:border-red-100 rounded-2xl"
+                >
+                  <CloseIcon size={18} /> HỦY BỎ NHẬP DỮ LIỆU
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      <footer className="mt-40 py-24 border-t border-slate-100 dark:border-slate-800 text-center text-slate-400 dark:text-slate-600 font-black text-xs tracking-[1em] uppercase">© 2024 BrianQuiz AI • Secure Cloud Slot Engine</footer>
+      <footer className="mt-40 py-24 border-t border-slate-100 dark:border-slate-800 text-center text-slate-400 dark:text-slate-600 font-black text-xs tracking-[1em] uppercase">© 2024 BrianQuiz AI • Powered by Brian-share Protocol</footer>
     </div>
   );
 };
