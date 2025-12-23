@@ -4,7 +4,7 @@ import {
   PlusCircle, ArrowRight, BrainCircuit, User as UserIcon, Moon, Sun, 
   Clock, CheckCircle, RotateCcw, Database, Edit3, Save, Trash2, 
   Home, Loader2, Sparkles, Share2, LogOut, ShieldCheck, Trophy, Users,
-  ChevronLeft, AlertCircle
+  ChevronLeft, AlertCircle, Download, X as CloseIcon, Copy
 } from 'lucide-react';
 import { AppState, QuizSession, QuizSlot, User, Participant } from './types';
 import QuizEditor from './components/QuizEditor';
@@ -62,28 +62,29 @@ const App: React.FC = () => {
   const [result, setResult] = useState<{ score: number; total: number } | null>(null);
   const [isDark, setIsDark] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [pendingImport, setPendingImport] = useState<QuizSession | null>(null);
   const [slots, setSlots] = useState<QuizSlot[]>([
-    { id: 1, shareId: 'slot-1-' + Math.random().toString(36).substr(2, 9), name: 'Slot 1', quiz: null, updatedAt: null, participants: [] },
-    { id: 2, shareId: 'slot-2-' + Math.random().toString(36).substr(2, 9), name: 'Slot 2', quiz: null, updatedAt: null, participants: [] },
-    { id: 3, shareId: 'slot-3-' + Math.random().toString(36).substr(2, 9), name: 'Slot 3', quiz: null, updatedAt: null, participants: [] },
+    { id: 1, shareId: 's1', name: 'Slot 1', quiz: null, updatedAt: null, participants: [] },
+    { id: 2, shareId: 's2', name: 'Slot 2', quiz: null, updatedAt: null, participants: [] },
+    { id: 3, shareId: 's3', name: 'Slot 3', quiz: null, updatedAt: null, participants: [] },
   ]);
 
   const sounds = useSound();
 
+  // Detection of Import Link
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const sharedId = params.get('share');
-    if (sharedId) {
-      const savedSlots = localStorage.getItem('brianquiz_slots');
-      if (savedSlots) {
-        const parsed: QuizSlot[] = JSON.parse(savedSlots);
-        const sharedSlot = parsed.find(s => s.shareId === sharedId);
-        if (sharedSlot && sharedSlot.quiz) {
-          setQuiz(sharedSlot.quiz);
-          setActiveSlotId(sharedSlot.id);
-          setState('NAME_ENTRY');
-          return;
+    const importData = params.get('import');
+    if (importData) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(importData))));
+        if (decoded && decoded.questions) {
+          setPendingImport(decoded);
+          // Remove param from URL to keep it clean
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
+      } catch (e) {
+        console.error("Lỗi giải mã bài tập chia sẻ", e);
       }
     }
 
@@ -169,10 +170,25 @@ const App: React.FC = () => {
   };
 
   const shareSlot = (slot: QuizSlot) => {
-    const url = `${window.location.origin}${window.location.pathname}?share=${slot.shareId}`;
+    if (!slot.quiz) return;
+    // Encode quiz data into URL
+    const quizData = btoa(unescape(encodeURIComponent(JSON.stringify(slot.quiz))));
+    const url = `${window.location.origin}${window.location.pathname}?import=${quizData}`;
     navigator.clipboard.writeText(url);
-    alert('Đã sao chép liên kết chia sẻ vào bộ nhớ tạm!');
+    alert('Đã tạo liên kết bài tập "Canva-style"! Bạn có thể gửi link này cho bất kỳ ai.');
     sounds.click();
+  };
+
+  const handleImportToSlot = (slotId: number) => {
+    if (!pendingImport) return;
+    const targetSlot = slots.find(s => s.id === slotId);
+    if (targetSlot?.quiz && !confirm(`Slot "${targetSlot.name}" đã có bài tập. Bạn có muốn ghi đè không?`)) {
+      return;
+    }
+    saveToSlot(slotId, pendingImport);
+    setPendingImport(null);
+    sounds.congrats();
+    alert(`Đã nhập bài tập "${pendingImport.title}" thành công vào ${targetSlot?.name}!`);
   };
 
   const renderContent = () => {
@@ -226,7 +242,7 @@ const App: React.FC = () => {
                       />
                       {slot.quiz && (
                         <div className="flex gap-2">
-                          <button onClick={() => shareSlot(slot)} className="text-blue-500 hover:scale-110 transition-transform p-1"><Share2 size={18} /></button>
+                          <button onClick={() => shareSlot(slot)} title="Chia sẻ Link (Canva Style)" className="text-blue-500 hover:scale-110 transition-transform p-1"><Share2 size={18} /></button>
                           <button onClick={() => { if(confirm('Xóa?')) setSlots(prev => prev.map(s => s.id === slot.id ? {...s, quiz:null, updatedAt:null, participants: []} : s)); }} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={18} /></button>
                         </div>
                       )}
@@ -236,7 +252,7 @@ const App: React.FC = () => {
                         <p className="text-slate-400 text-[10px] font-black mb-4 uppercase tracking-widest">{slot.quiz.questions.length} CÂU • {slot.participants.length} NGƯỜI THI</p>
                         <div className="flex gap-2">
                           <button onClick={() => { setQuiz(slot.quiz); setActiveSlotId(slot.id); setState('EDIT'); setShowLibrary(false); sounds.click(); }} className="flex-1 py-3 bg-slate-100 dark:bg-slate-900 rounded-xl font-black text-xs hover:bg-green-600 hover:text-white transition-all uppercase">Sửa</button>
-                          <button onClick={() => { shareSlot(slot); }} className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all uppercase flex items-center gap-2"><Share2 size={14} /> Link</button>
+                          <button onClick={() => shareSlot(slot)} className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all uppercase flex items-center gap-2"><Share2 size={14} /> Share</button>
                         </div>
                       </div>
                     ) : (
@@ -258,7 +274,7 @@ const App: React.FC = () => {
             onSave={(updated) => setQuiz(updated)}
             onSaveToSlot={saveToSlot}
             onStart={() => setState('NAME_ENTRY')}
-            onShare={shareSlot}
+            onShare={(s) => shareSlot(s)}
           />
         ) : null;
 
@@ -354,14 +370,14 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* BẢNG VÀNG THỐNG KÊ - LUÔN HIỂN THỊ NẾU CÓ SLOT ACTIVE */}
+            {/* BẢNG VÀNG THỐNG KÊ - HIỂN THỊ CHI TIẾT */}
             {currentSlot && (
               <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-xl p-12 border-4 border-slate-50 dark:border-slate-700 fade-in-up" style={{animationDelay: '0.4s'}}>
                 <div className="flex items-center gap-4 mb-10 pb-6 border-b dark:border-slate-700">
                   <div className="p-4 bg-yellow-500 text-white rounded-2xl shadow-lg animate-pulse"><Trophy size={24} /></div>
                   <div>
                     <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Bảng Vàng Danh Dự</h3>
-                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Lịch sử bài tập: {currentSlot.name}</p>
+                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Thành tích bài thi: {currentSlot.quiz?.title}</p>
                   </div>
                 </div>
 
@@ -383,7 +399,7 @@ const App: React.FC = () => {
                             </span>
                             <div>
                               <p className="text-xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors">{p.name}</p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.completedAt}</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">{p.completedAt} • {currentSlot.quiz?.title}</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -397,7 +413,7 @@ const App: React.FC = () => {
                 ) : (
                   <div className="py-20 text-center border-4 border-dashed border-slate-100 dark:border-slate-700 rounded-3xl">
                     <Database size={48} className="mx-auto text-slate-200 dark:text-slate-700 mb-4 opacity-20" />
-                    <p className="text-slate-400 font-black text-sm uppercase tracking-widest">Đang chờ những người tham gia đầu tiên...</p>
+                    <p className="text-slate-400 font-black text-sm uppercase tracking-widest">Hãy là người đầu tiên ghi tên vào bảng vàng!</p>
                   </div>
                 )}
               </div>
@@ -439,7 +455,57 @@ const App: React.FC = () => {
           </div>
         </div>
       </nav>
+
       <main className="mt-16">{renderContent()}</main>
+
+      {/* IMPORT DIALOG (CANVA STYLE) */}
+      {pendingImport && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-6 fade-in">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[4rem] shadow-2xl border-8 border-white dark:border-slate-700 overflow-hidden">
+            <div className="p-12 text-center">
+              <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8">
+                <Download size={48} className="animate-bounce" />
+              </div>
+              <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-4 tracking-tighter uppercase">Bạn nhận được bài tập mới!</h2>
+              <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-3xl mb-10 border-2 border-slate-100 dark:border-slate-700">
+                <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">Tên bài tập:</p>
+                <p className="text-3xl font-black text-green-600 mb-4">{pendingImport.title}</p>
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">{pendingImport.questions.length} CÂU HỎI TRONG GÓI CHIA SẺ</p>
+              </div>
+              
+              <div className="space-y-4">
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest text-left px-4">Lưu vào Slot của bạn:</p>
+                <div className="grid grid-cols-1 gap-4">
+                  {slots.map(slot => (
+                    <button 
+                      key={slot.id}
+                      onClick={() => handleImportToSlot(slot.id)}
+                      className="group w-full p-6 bg-slate-50 dark:bg-slate-900 hover:bg-green-600 border-4 border-transparent hover:border-white transition-all rounded-[2rem] flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-6">
+                        <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center font-black group-hover:text-green-600">{slot.id}</div>
+                        <div className="text-left">
+                          <p className="text-xl font-black text-slate-900 dark:text-white group-hover:text-white">{slot.name}</p>
+                          <p className="text-[10px] font-black text-slate-400 group-hover:text-green-100 uppercase tracking-widest">{slot.quiz ? 'Có sẵn bài tập (Sẽ ghi đè)' : 'Trống - Sẵn sàng'}</p>
+                        </div>
+                      </div>
+                      <Save className="text-slate-300 group-hover:text-white group-hover:animate-bounce" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setPendingImport(null)}
+                className="mt-10 text-slate-400 hover:text-red-500 font-black text-sm uppercase tracking-widest transition-colors flex items-center justify-center gap-2 mx-auto"
+              >
+                <CloseIcon size={16} /> HỦY NHẬP DỮ LIỆU
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="mt-40 py-24 border-t border-slate-100 dark:border-slate-800 text-center text-slate-400 dark:text-slate-600 font-black text-xs tracking-[1em] uppercase">© 2024 BrianQuiz AI • Secure Cloud Slot Engine</footer>
     </div>
   );
