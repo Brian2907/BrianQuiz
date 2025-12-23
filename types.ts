@@ -43,4 +43,4 @@ export interface User {
   password?: string;
 }
 
-export type AppState = 'AUTH' | 'HOME' | 'EDIT' | 'NAME_ENTRY' | 'TAKE' | 'CALCULATING' | 'RESULT';
+export type AppState = 'AUTH' | 'HOME' | 'EDIT' | 'SETTINGS' | 'NAME_ENTRY' | 'TAKE' | 'CALCULATING' | 'RESULT';

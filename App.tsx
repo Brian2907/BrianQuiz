@@ -267,18 +267,38 @@ const App: React.FC = () => {
         );
 
       case 'EDIT':
-        return quiz ? <QuizEditor quiz={quiz} slots={slots} activeSlotId={activeSlotId} onSave={(updated) => setQuiz(updated)} onSaveToSlot={saveToSlot} onStart={() => setState('NAME_ENTRY')} onShare={shareSlot} /> : null;
+        return quiz ? (
+          <QuizEditor 
+            quiz={quiz} 
+            slots={slots} 
+            activeSlotId={activeSlotId} 
+            onSave={(updated) => setQuiz(updated)} 
+            onSaveToSlot={saveToSlot} 
+            onStart={() => setState('NAME_ENTRY')} 
+            onShare={shareSlot}
+            onBack={() => setState('HOME')}
+          />
+        ) : null;
 
       case 'NAME_ENTRY':
         return (
-          <div className="max-w-xl mx-auto py-24 px-6 fade-in-up text-center">
-            <h2 className="text-5xl font-black text-slate-900 dark:text-white mb-10 tracking-tighter uppercase">Xác minh danh tính</h2>
-            <div className="bg-white dark:bg-slate-800 p-12 rounded-[3.5rem] shadow-2xl border-8 border-white dark:border-slate-700">
+          <div className="max-w-xl mx-auto py-16 px-6 space-y-8 fade-in-up text-center">
+            <button 
+              onClick={() => setState('EDIT')}
+              className="inline-flex items-center gap-3 px-8 py-4 bg-white dark:bg-slate-800 text-slate-500 hover:text-green-600 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl border-4 border-slate-50 dark:border-slate-700 hover-lift transition-all group"
+            >
+              <ChevronLeft size={20} className="group-hover:-translate-x-2 transition-transform" /> QUAY LẠI CHỈNH SỬA
+            </button>
+
+            <div className="bg-white dark:bg-slate-800 p-12 md:p-16 rounded-[4rem] shadow-2xl border-8 border-white dark:border-slate-700">
+              <h2 className="text-5xl font-black text-slate-900 dark:text-white mb-10 tracking-tighter uppercase leading-none">Xác minh danh tính</h2>
               <input 
-                type="text" autoFocus className="w-full p-8 bg-slate-50 dark:bg-slate-900 border-4 border-transparent focus:border-green-500 rounded-3xl text-3xl font-black text-center outline-none transition-all mb-8 shadow-inner dark:text-white"
+                type="text" autoFocus className="w-full p-8 bg-slate-50 dark:bg-slate-900 border-4 border-transparent focus:border-green-500 rounded-[2.5rem] text-3xl font-black text-center outline-none transition-all mb-10 shadow-inner dark:text-white"
                 placeholder="Tên của bạn..." value={userName} onChange={(e) => setUserName(e.target.value)}
               />
-              <button disabled={!userName.trim()} onClick={() => { sounds.click(); setState('TAKE'); }} className="w-full py-8 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-[2rem] font-black text-2xl shadow-xl hover:-translate-y-1 transition-all">BẮT ĐẦU THI</button>
+              <button disabled={!userName.trim()} onClick={() => { sounds.click(); setState('TAKE'); }} className="w-full py-8 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:-translate-y-2 hover:shadow-green-500/50 transition-all flex items-center justify-center gap-4 group">
+                BẮT ĐẦU THI <ArrowRight size={32} className="group-hover:translate-x-3 transition-transform" />
+              </button>
             </div>
           </div>
         );
@@ -371,7 +391,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen pb-24 bg-slate-50 dark:bg-[#020617] transition-colors duration-500">
       <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl sticky top-0 z-50 border-b-4 dark:border-slate-800 h-32 flex items-center px-12 justify-between">
-        <div className="flex items-center gap-6 cursor-pointer group" onClick={() => currentUser && setState('HOME')}>
+        <div className="flex items-center gap-6 cursor-pointer group" onClick={() => { if(currentUser) { sounds.click(); setState('HOME'); } }}>
           <KDTreeLogo size="md" />
           <div className="flex flex-col">
             <span className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white uppercase leading-none group-hover:text-green-600 transition-colors">Brian<span className="text-green-600 group-hover:text-slate-900 dark:group-hover:text-white">Quiz</span></span>
