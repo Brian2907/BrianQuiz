@@ -3,7 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   PlusCircle, ArrowRight, BrainCircuit, User as UserIcon, Moon, Sun, 
   Clock, CheckCircle, RotateCcw, Database, Edit3, Save, Trash2, 
-  Home, Loader2, Sparkles, Share2, LogOut, ShieldCheck, Trophy, Users
+  Home, Loader2, Sparkles, Share2, LogOut, ShieldCheck, Trophy, Users,
+  ChevronLeft, AlertCircle
 } from 'lucide-react';
 import { AppState, QuizSession, QuizSlot, User, Participant } from './types';
 import QuizEditor from './components/QuizEditor';
@@ -62,15 +63,14 @@ const App: React.FC = () => {
   const [isDark, setIsDark] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [slots, setSlots] = useState<QuizSlot[]>([
-    { id: 1, shareId: 'slot-1-abc', name: 'Slot 1', quiz: null, updatedAt: null, participants: [] },
-    { id: 2, shareId: 'slot-2-xyz', name: 'Slot 2', quiz: null, updatedAt: null, participants: [] },
-    { id: 3, shareId: 'slot-3-mno', name: 'Slot 3', quiz: null, updatedAt: null, participants: [] },
+    { id: 1, shareId: 'slot-1-' + Math.random().toString(36).substr(2, 9), name: 'Slot 1', quiz: null, updatedAt: null, participants: [] },
+    { id: 2, shareId: 'slot-2-' + Math.random().toString(36).substr(2, 9), name: 'Slot 2', quiz: null, updatedAt: null, participants: [] },
+    { id: 3, shareId: 'slot-3-' + Math.random().toString(36).substr(2, 9), name: 'Slot 3', quiz: null, updatedAt: null, participants: [] },
   ]);
 
   const sounds = useSound();
 
   useEffect(() => {
-    // Check for shared link on mount
     const params = new URLSearchParams(window.location.search);
     const sharedId = params.get('share');
     if (sharedId) {
@@ -134,7 +134,6 @@ const App: React.FC = () => {
     setResult({ score, total });
     setState('CALCULATING');
     
-    // Save to statistics if we are in a slot context
     if (activeSlotId) {
       const newParticipant: Participant = {
         id: crypto.randomUUID(),
@@ -145,7 +144,7 @@ const App: React.FC = () => {
       };
       setSlots(prev => prev.map(s => s.id === activeSlotId ? {
         ...s,
-        participants: [newParticipant, ...s.participants].slice(0, 100) // Keep last 100
+        participants: [newParticipant, ...s.participants].slice(0, 100)
       } : s));
     }
 
@@ -227,15 +226,18 @@ const App: React.FC = () => {
                       />
                       {slot.quiz && (
                         <div className="flex gap-2">
-                          <button onClick={() => shareSlot(slot)} className="text-blue-500 hover:scale-110 transition-transform"><Share2 size={18} /></button>
-                          <button onClick={() => { if(confirm('Xóa?')) setSlots(prev => prev.map(s => s.id === slot.id ? {...s, quiz:null, updatedAt:null, participants: []} : s)); }} className="text-red-400 hover:text-red-600"><Trash2 size={18} /></button>
+                          <button onClick={() => shareSlot(slot)} className="text-blue-500 hover:scale-110 transition-transform p-1"><Share2 size={18} /></button>
+                          <button onClick={() => { if(confirm('Xóa?')) setSlots(prev => prev.map(s => s.id === slot.id ? {...s, quiz:null, updatedAt:null, participants: []} : s)); }} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={18} /></button>
                         </div>
                       )}
                     </div>
                     {slot.quiz ? (
                       <div>
                         <p className="text-slate-400 text-[10px] font-black mb-4 uppercase tracking-widest">{slot.quiz.questions.length} CÂU • {slot.participants.length} NGƯỜI THI</p>
-                        <button onClick={() => { setQuiz(slot.quiz); setActiveSlotId(slot.id); setState('EDIT'); setShowLibrary(false); sounds.click(); }} className="w-full py-3 bg-slate-100 dark:bg-slate-900 rounded-xl font-black text-sm hover:bg-green-600 hover:text-white transition-all">CHỈNH SỬA</button>
+                        <div className="flex gap-2">
+                          <button onClick={() => { setQuiz(slot.quiz); setActiveSlotId(slot.id); setState('EDIT'); setShowLibrary(false); sounds.click(); }} className="flex-1 py-3 bg-slate-100 dark:bg-slate-900 rounded-xl font-black text-xs hover:bg-green-600 hover:text-white transition-all uppercase">Sửa</button>
+                          <button onClick={() => { shareSlot(slot); }} className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all uppercase flex items-center gap-2"><Share2 size={14} /> Link</button>
+                        </div>
                       </div>
                     ) : (
                       <div className="h-24 flex items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-xl text-slate-300 text-xs font-black uppercase tracking-widest italic">Trống</div>
@@ -252,9 +254,11 @@ const App: React.FC = () => {
           <QuizEditor 
             quiz={quiz} 
             slots={slots}
+            activeSlotId={activeSlotId}
             onSave={(updated) => setQuiz(updated)}
             onSaveToSlot={saveToSlot}
             onStart={() => setState('NAME_ENTRY')}
+            onShare={shareSlot}
           />
         ) : null;
 
@@ -276,7 +280,7 @@ const App: React.FC = () => {
               <button 
                 disabled={!userName.trim()}
                 onClick={() => { sounds.click(); if(userName.trim()) setState('TAKE'); }}
-                className="w-full py-8 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-[2rem] font-black text-3xl shadow-2xl transition-all"
+                className="w-full py-8 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-[2rem] font-black text-2xl shadow-2xl transition-all"
               >
                 VÀO PHÒNG THI
               </button>
@@ -350,40 +354,52 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* STATISTICS SECTION */}
-            {currentSlot && currentSlot.participants.length > 0 && (
+            {/* BẢNG VÀNG THỐNG KÊ - LUÔN HIỂN THỊ NẾU CÓ SLOT ACTIVE */}
+            {currentSlot && (
               <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-xl p-12 border-4 border-slate-50 dark:border-slate-700 fade-in-up" style={{animationDelay: '0.4s'}}>
                 <div className="flex items-center gap-4 mb-10 pb-6 border-b dark:border-slate-700">
-                  <div className="p-4 bg-green-500 text-white rounded-2xl shadow-lg"><Users size={24} /></div>
+                  <div className="p-4 bg-yellow-500 text-white rounded-2xl shadow-lg animate-pulse"><Trophy size={24} /></div>
                   <div>
                     <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Bảng Vàng Danh Dự</h3>
-                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Thống kê 100 lượt thi gần nhất cho slot này</p>
+                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Lịch sử bài tập: {currentSlot.name}</p>
                   </div>
                 </div>
 
-                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 scrollbar-thin">
-                  {currentSlot.participants.map((p, idx) => {
-                    const pScore = Math.round((p.score / p.total) * 100) / 10;
-                    const pEval = getEvaluation(pScore);
-                    return (
-                      <div key={p.id} className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-transparent hover:border-green-400 transition-all group">
-                        <div className="flex items-center gap-6">
-                          <span className={`w-12 h-12 flex items-center justify-center rounded-xl font-black ${idx < 3 ? 'bg-yellow-400 text-white animate-pulse' : 'bg-white dark:bg-slate-800 text-slate-400'}`}>
-                            {idx + 1}
-                          </span>
-                          <div>
-                            <p className="text-xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors">{p.name}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.completedAt}</p>
+                {currentSlot.participants.length > 0 ? (
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 scrollbar-thin">
+                    {currentSlot.participants.map((p, idx) => {
+                      const pScore = Math.round((p.score / p.total) * 100) / 10;
+                      const pEval = getEvaluation(pScore);
+                      return (
+                        <div key={p.id} className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-transparent hover:border-green-400 transition-all group">
+                          <div className="flex items-center gap-6">
+                            <span className={`w-12 h-12 flex items-center justify-center rounded-xl font-black text-lg ${
+                              idx === 0 ? 'bg-yellow-400 text-white' : 
+                              idx === 1 ? 'bg-slate-300 text-slate-600' : 
+                              idx === 2 ? 'bg-orange-400 text-white' : 
+                              'bg-white dark:bg-slate-800 text-slate-400'
+                            }`}>
+                              {idx + 1}
+                            </span>
+                            <div>
+                              <p className="text-xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors">{p.name}</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.completedAt}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-2xl font-black ${pEval.color}`}>{pScore}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.score}/{p.total} CÂU</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className={`text-2xl font-black ${pEval.color}`}>{pScore}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.score}/{p.total} CÂU</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-20 text-center border-4 border-dashed border-slate-100 dark:border-slate-700 rounded-3xl">
+                    <Database size={48} className="mx-auto text-slate-200 dark:text-slate-700 mb-4 opacity-20" />
+                    <p className="text-slate-400 font-black text-sm uppercase tracking-widest">Đang chờ những người tham gia đầu tiên...</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -397,17 +413,30 @@ const App: React.FC = () => {
     <div className="min-h-screen pb-24 selection:bg-green-500 selection:text-white overflow-x-hidden bg-slate-50 dark:bg-[#020617] transition-colors duration-500">
       <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800 transition-all duration-700">
         <div className="max-w-7xl mx-auto px-8 h-32 flex items-center justify-between">
-          <div className="flex items-center gap-6 cursor-pointer group" onClick={() => { sounds.click(); setState(currentUser ? 'HOME' : 'AUTH'); }}>
+          <div className="flex items-center gap-6 cursor-pointer group" onClick={() => { sounds.click(); if (currentUser) setState('HOME'); }}>
             <KDTreeLogo size="md" />
             <div className="flex flex-col">
               <span className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white uppercase leading-none">Brian<span className="text-green-600">Quiz</span></span>
               <span className="text-[10px] font-black text-slate-400 tracking-[0.6em] uppercase mt-1">KD-Tree Edition</span>
             </div>
           </div>
-          <button onClick={toggleDark} className="w-16 h-16 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-yellow-400 rounded-[2rem] transition-all hover:scale-110 border-4 border-white dark:border-slate-700 shadow-sm relative group">
-             <div className={`transition-transform duration-500 ${isDark ? 'rotate-[360deg] scale-0' : 'rotate-0 scale-100'}`}><Moon size={32} /></div>
-             <div className={`absolute transition-transform duration-500 ${isDark ? 'rotate-0 scale-100' : 'rotate-[-360deg] scale-0'}`}><Sun size={32} /></div>
-          </button>
+          
+          <div className="flex items-center gap-4">
+            {state !== 'HOME' && state !== 'AUTH' && (
+              <button 
+                onClick={() => { sounds.click(); setState('HOME'); }}
+                className="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border-2 border-transparent hover:border-green-500 shadow-sm group"
+              >
+                <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+                <span className="hidden sm:inline">MENU CHÍNH</span>
+              </button>
+            )}
+
+            <button onClick={toggleDark} className="w-16 h-16 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-yellow-400 rounded-[2rem] transition-all hover:scale-110 border-4 border-white dark:border-slate-700 shadow-sm relative overflow-hidden group">
+               <div className={`transition-transform duration-500 ${isDark ? 'rotate-[360deg] scale-0' : 'rotate-0 scale-100'}`}><Moon size={32} /></div>
+               <div className={`absolute transition-transform duration-500 ${isDark ? 'rotate-0 scale-100' : 'rotate-[-360deg] scale-0'}`}><Sun size={32} /></div>
+            </button>
+          </div>
         </div>
       </nav>
       <main className="mt-16">{renderContent()}</main>

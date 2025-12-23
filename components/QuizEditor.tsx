@@ -1,18 +1,22 @@
+
 import React, { useState } from 'react';
 import { Question, QuestionType, QuizSession, QuizSlot } from '../types';
-import { Plus, Trash2, Save, Play, Clock, Database, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Save, Play, Clock, Database, ChevronDown, AlertCircle, Share2 } from 'lucide-react';
 
 interface QuizEditorProps {
   quiz: QuizSession;
   slots: QuizSlot[];
+  activeSlotId: number | null;
   onSave: (updatedQuiz: QuizSession) => void;
   onSaveToSlot: (slotId: number, currentQuiz: QuizSession) => void;
   onStart: () => void;
+  onShare: (slot: QuizSlot) => void;
 }
 
-const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, slots, onSave, onSaveToSlot, onStart }) => {
+const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, slots, activeSlotId, onSave, onSaveToSlot, onStart, onShare }) => {
   const [editedQuiz, setEditedQuiz] = useState<QuizSession>(quiz);
   const [showSaveMenu, setShowSaveMenu] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const addQuestion = (type: QuestionType) => {
     const newQuestion: Question = {
@@ -23,6 +27,7 @@ const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, slots, onSave, onSaveToSl
       correctAnswer: type === QuestionType.MULTIPLE_CHOICE ? 'A' : 'True',
     };
     setEditedQuiz({ ...editedQuiz, questions: [...editedQuiz.questions, newQuestion] });
+    setValidationError(null);
   };
 
   const removeQuestion = (id: string) => {
@@ -37,11 +42,39 @@ const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, slots, onSave, onSaveToSl
       ...editedQuiz,
       questions: editedQuiz.questions.map(q => q.id === id ? { ...q, ...updates } : q)
     });
+    setValidationError(null);
   };
 
   const setTimeLimit = (minutes: number) => {
     setEditedQuiz({ ...editedQuiz, timeLimit: minutes });
   };
+
+  const validateAndStart = () => {
+    if (editedQuiz.questions.length === 0) {
+      setValidationError("Vui lòng soạn thảo hệ thống câu hỏi!");
+      return;
+    }
+
+    const isAllValid = editedQuiz.questions.every(q => {
+      const hasText = q.questionText.trim() !== '';
+      if (q.type === QuestionType.MULTIPLE_CHOICE) {
+        const hasOptions = q.options?.every(opt => opt.trim() !== '');
+        return hasText && hasOptions;
+      }
+      return hasText;
+    });
+
+    if (!isAllValid) {
+      setValidationError("Vui lòng hoàn thiện nội dung và tất cả đáp án cho các câu hỏi!");
+      return;
+    }
+
+    setValidationError(null);
+    onSave(editedQuiz);
+    onStart();
+  };
+
+  const currentActiveSlot = slots.find(s => s.id === activeSlotId);
 
   return (
     <div className="max-w-5xl mx-auto p-8 bg-white dark:bg-slate-800 rounded-[3rem] shadow-2xl fade-in-up">
@@ -82,7 +115,7 @@ const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, slots, onSave, onSaveToSl
             <div className="flex-1 relative">
               <button 
                 onClick={() => setShowSaveMenu(!showSaveMenu)}
-                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-2xl font-bold transition-all group">
+                className="w-full h-full flex items-center justify-center gap-2 px-6 py-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-2xl font-bold transition-all group">
                 <Save size={20} className="group-hover:animate-hover-bounce" /> Lưu <ChevronDown size={16} className={`transition-transform ${showSaveMenu ? 'rotate-180' : ''}`} />
               </button>
               
@@ -94,7 +127,9 @@ const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, slots, onSave, onSaveToSl
                       <button 
                         key={slot.id}
                         onClick={() => { onSaveToSlot(slot.id, editedQuiz); setShowSaveMenu(false); }}
-                        className="w-full text-left p-3 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-xl transition-all border border-transparent hover:border-green-200 flex items-center gap-3 group">
+                        className={`w-full text-left p-3 rounded-xl transition-all border flex items-center gap-3 group ${
+                          activeSlotId === slot.id ? 'bg-green-100 dark:bg-green-900/30 border-green-500' : 'hover:bg-green-50 dark:hover:bg-green-900/20 border-transparent hover:border-green-200'
+                        }`}>
                         <Database size={16} className="text-green-500 group-hover:animate-bounce" />
                         <div>
                           <p className="text-sm font-black text-slate-800 dark:text-white">{slot.name}</p>
@@ -107,10 +142,27 @@ const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, slots, onSave, onSaveToSl
               )}
             </div>
 
-            <button onClick={() => { onSave(editedQuiz); onStart(); }} className="flex-1 flex items-center justify-center gap-2 px-10 py-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-black shadow-xl hover:-translate-y-1 transition-all group">
+            {currentActiveSlot && (
+              <button 
+                onClick={() => onShare(currentActiveSlot)}
+                className="flex items-center justify-center gap-2 px-6 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-black shadow-xl hover:-translate-y-1 transition-all group"
+              >
+                <Share2 size={20} className="group-hover:scale-110 transition-transform" /> 
+                <span className="hidden sm:inline">Chia sẻ Link</span>
+              </button>
+            )}
+
+            <button onClick={validateAndStart} className="flex-1 flex items-center justify-center gap-2 px-10 py-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-black shadow-xl hover:-translate-y-1 transition-all group min-w-[160px]">
               <Play size={20} fill="currentColor" className="group-hover:animate-hover-pulse" /> Thi ngay
             </button>
           </div>
+          
+          {validationError && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-900/50 rounded-xl text-red-600 dark:text-red-400 text-[10px] font-black uppercase tracking-wider animate-shake">
+              <AlertCircle size={14} />
+              {validationError}
+            </div>
+          )}
         </div>
       </div>
 
@@ -124,7 +176,9 @@ const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, slots, onSave, onSaveToSl
               <span className="bg-green-600 text-white font-black px-4 py-1.5 rounded-xl text-sm">CÂU {idx + 1}</span>
             </div>
             <textarea
-              className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-green-100 dark:focus:ring-green-900 focus:border-green-500 outline-none mb-6 min-h-[100px] font-bold text-xl text-slate-900 dark:text-white transition-all shadow-inner"
+              className={`w-full p-6 bg-white dark:bg-slate-800 border-2 rounded-2xl focus:ring-4 focus:ring-green-100 dark:focus:ring-green-900 focus:border-green-500 outline-none mb-6 min-h-[100px] font-bold text-xl text-slate-900 dark:text-white transition-all shadow-inner ${
+                q.questionText.trim() === '' ? 'border-red-100 dark:border-red-900/30' : 'border-slate-100 dark:border-slate-700'
+              }`}
               placeholder="Nội dung câu hỏi..."
               value={q.questionText}
               onChange={(e) => updateQuestion(q.id, { questionText: e.target.value })}
@@ -143,7 +197,9 @@ const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, slots, onSave, onSaveToSl
                     </button>
                     <input
                       type="text"
-                      className="flex-1 p-4 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl outline-none focus:border-green-500 text-slate-900 dark:text-white font-bold transition-all shadow-sm"
+                      className={`flex-1 p-4 bg-white dark:bg-slate-800 border-2 rounded-2xl outline-none focus:border-green-500 text-slate-900 dark:text-white font-bold transition-all shadow-sm ${
+                        q.options![i].trim() === '' ? 'border-red-50 dark:border-red-900/20' : 'border-slate-100 dark:border-slate-700'
+                      }`}
                       placeholder={`Đáp án ${label}...`}
                       value={q.options[i]}
                       onChange={(e) => {
