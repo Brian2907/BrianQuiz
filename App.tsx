@@ -4,7 +4,7 @@ import {
   PlusCircle, ArrowRight, BrainCircuit, User as UserIcon, Moon, Sun, 
   Clock, CheckCircle, RotateCcw, Database, Edit3, Save, Trash2, 
   Home, Loader2, Sparkles, Share2, LogOut, ShieldCheck, Trophy, Users,
-  ChevronLeft, AlertCircle, Download, X as CloseIcon, Copy, Zap
+  ChevronLeft, AlertCircle, Download, X as CloseIcon, Copy, Zap, Terminal
 } from 'lucide-react';
 import { AppState, QuizSession, QuizSlot, User, Participant } from './types';
 import QuizEditor from './components/QuizEditor';
@@ -71,22 +71,12 @@ const App: React.FC = () => {
 
   const sounds = useSound();
 
-  // Brian-share Protocol Handler
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const importData = params.get('import');
     if (importData) {
-      try {
-        // UTF-8 Base64 Decoding
-        const decoded = JSON.parse(decodeURIComponent(escape(atob(importData))));
-        if (decoded && decoded.questions && Array.isArray(decoded.questions)) {
-          setPendingImport(decoded);
-          // Clean URL to prevent re-triggering on refresh
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      } catch (e) {
-        console.error("Lỗi giải mã gói Brian-share:", e);
-      }
+      sessionStorage.setItem('brian_share_pending', importData);
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     const savedUser = localStorage.getItem('brianquiz_user');
@@ -97,16 +87,35 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const savedSlots = localStorage.getItem('brianquiz_slots');
-    if (savedSlots) setSlots(JSON.parse(savedSlots));
-    
+    if (currentUser) {
+      const userKey = `brian_cloud_data_${currentUser.id}`;
+      const savedSlots = localStorage.getItem(userKey);
+      if (savedSlots) setSlots(JSON.parse(savedSlots));
+
+      const pending = sessionStorage.getItem('brian_share_pending');
+      if (pending) {
+        try {
+          const decoded = JSON.parse(decodeURIComponent(escape(atob(pending))));
+          if (decoded && decoded.questions) {
+            setPendingImport(decoded);
+            sessionStorage.removeItem('brian_share_pending');
+          }
+        } catch (e) {}
+      }
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser) {
+      const userKey = `brian_cloud_data_${currentUser.id}`;
+      localStorage.setItem(userKey, JSON.stringify(slots));
+    }
+  }, [slots, currentUser]);
+
+  useEffect(() => {
     const savedTheme = localStorage.getItem('brianquiz_theme');
     if (savedTheme === 'dark') setIsDark(true);
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('brianquiz_slots', JSON.stringify(slots));
-  }, [slots]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
@@ -150,14 +159,14 @@ const App: React.FC = () => {
       } : s));
     }
 
-    let interval = setInterval(() => sounds.loading(), 1200);
+    let interval = setInterval(() => sounds.loading(), 1000);
     setTimeout(() => {
       clearInterval(interval);
       setState('RESULT');
       const scoreTen = Math.round((score / total) * 100) / 10;
       if (scoreTen >= 5) sounds.congrats();
       else sounds.regret();
-    }, 5000);
+    }, 4500);
   };
 
   const saveToSlot = (slotId: number, currentQuiz: QuizSession) => {
@@ -173,31 +182,19 @@ const App: React.FC = () => {
   const shareSlot = (slot: QuizSlot) => {
     if (!slot.quiz) return;
     try {
-      // Encode UTF-8 safely into Base64 for URL
       const quizData = btoa(unescape(encodeURIComponent(JSON.stringify(slot.quiz))));
       const url = `${window.location.origin}${window.location.pathname}?import=${quizData}`;
       navigator.clipboard.writeText(url);
-      alert('Đã kích hoạt Brian-share! Liên kết này chứa toàn bộ dữ liệu bài tập của bạn.');
+      alert('Brian-share: Đã sao chép liên kết đám mây!');
       sounds.click();
-    } catch (e) {
-      alert('Không thể tạo liên kết chia sẻ. Vui lòng thử lại.');
-    }
+    } catch (e) {}
   };
 
   const handleImportToSlot = (slotId: number) => {
     if (!pendingImport) return;
-    const targetSlot = slots.find(s => s.id === slotId);
-    
-    if (targetSlot?.quiz) {
-      if (!confirm(`CẢNH BÁO: Slot "${targetSlot.name}" đang chứa bài tập "${targetSlot.quiz.title}". Bạn có muốn ghi đè bằng bài tập mới không?`)) {
-        return;
-      }
-    }
-
     saveToSlot(slotId, pendingImport);
     setPendingImport(null);
     sounds.congrats();
-    alert(`Đã nạp bài tập "${pendingImport.title}" thành công vào ${targetSlot?.name}!`);
   };
 
   const renderContent = () => {
@@ -206,10 +203,10 @@ const App: React.FC = () => {
         return <Auth onAuthSuccess={handleAuthSuccess} />;
       case 'HOME':
         return (
-          <div className="max-w-4xl mx-auto py-24 px-6 fade-in-up text-center">
-            <div className="flex justify-center items-center gap-4 mb-10">
-              <div className="flex items-center gap-2 px-6 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-black border border-green-200 dark:border-green-800 shadow-sm">
-                <ShieldCheck size={14} /> HI, {currentUser?.username.toUpperCase()}
+          <div className="max-w-4xl mx-auto py-20 px-6 fade-in-up text-center">
+            <div className="flex justify-center items-center gap-4 mb-8">
+               <div className="flex items-center gap-2 px-6 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-xs font-black border border-blue-200 dark:border-blue-800 shadow-sm animate-pulse">
+                <ShieldCheck size={14} /> {currentUser?.username.toUpperCase()}
               </div>
               <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
                 <LogOut size={20} />
@@ -217,55 +214,50 @@ const App: React.FC = () => {
             </div>
             
             <h1 className="text-7xl md:text-9xl font-black text-slate-900 dark:text-white mb-12 leading-none tracking-tighter">
-              Brian<span className="text-green-600">Quiz</span><br />
-              <span className="text-3xl md:text-5xl text-slate-400 tracking-widest uppercase font-light">Sáng tạo & Chia sẻ</span>
+              Brian<span className="text-green-600 animate-pulse">Quiz</span><br />
+              <span className="text-2xl md:text-4xl text-slate-400 tracking-[0.4em] uppercase font-light">Infinite Cloud</span>
             </h1>
 
             <div className="flex flex-col md:flex-row items-center justify-center gap-8 mb-20">
               <button 
                 onClick={() => { sounds.click(); setQuiz({ id: crypto.randomUUID(), title: 'Đề ôn tập mới', questions: [], timeLimit: 45 }); setState('EDIT'); setActiveSlotId(null); }}
-                onMouseEnter={sounds.select}
                 className="group relative bg-green-600 hover:bg-green-700 text-white px-16 py-8 rounded-[3rem] font-black text-3xl shadow-2xl hover:shadow-green-500/50 hover:-translate-y-2 transition-all flex items-center gap-6"
               >
-                <PlusCircle size={40} className="animate-hover-rotate" /> SOẠN ĐỀ MỚI
+                <PlusCircle size={40} className="animate-hover-rotate" /> SOẠN ĐỀ
               </button>
 
               <button 
                 onClick={() => { sounds.click(); setShowLibrary(!showLibrary); }}
-                onMouseEnter={sounds.select}
-                className="group bg-white dark:bg-slate-800 text-slate-700 dark:text-white px-16 py-8 rounded-[3rem] font-black text-3xl shadow-xl hover:shadow-2xl border-4 border-slate-100 dark:border-slate-700 hover:-translate-y-2 transition-all flex items-center gap-6"
+                className="group bg-white dark:bg-slate-800 text-slate-700 dark:text-white px-16 py-8 rounded-[3rem] font-black text-3xl shadow-xl hover:shadow-2xl border-4 border-slate-50 dark:border-slate-700 hover:-translate-y-2 transition-all flex items-center gap-6"
               >
-                <Database size={36} className="text-green-600 group-hover:animate-bounce" /> {showLibrary ? 'ĐÓNG THƯ VIỆN' : 'MỞ THƯ VIỆN'}
+                <Database size={36} className="text-green-600 group-hover:animate-bounce" /> {showLibrary ? 'ĐÓNG KHO' : 'KHO ĐỀ'}
               </button>
             </div>
 
             {showLibrary && (
-              <div className="grid md:grid-cols-3 gap-6 fade-in-up mt-12">
-                {slots.map(slot => (
-                  <div key={slot.id} className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-4 border-slate-50 dark:border-slate-700 text-left hover:border-green-500 transition-all group relative overflow-hidden">
+              <div className="fade-in-up mt-12 text-left grid md:grid-cols-3 gap-6">
+                {slots.map((slot, i) => (
+                  <div key={slot.id} style={{animationDelay: `${i * 0.1}s`}} className="fade-in-up bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-4 border-slate-50 dark:border-slate-700 hover:border-green-500 hover:shadow-2xl transition-all group relative overflow-hidden">
                     <div className="flex justify-between items-start mb-4">
-                       <input 
-                        className="bg-transparent font-black text-xl text-slate-900 dark:text-white focus:outline-none border-b-2 border-transparent focus:border-green-500 w-full mr-4"
+                      <input 
+                        className="bg-transparent font-black text-xl text-slate-900 dark:text-white focus:outline-none border-b-2 border-transparent focus:border-green-500 w-full"
                         value={slot.name}
                         onChange={(e) => setSlots(prev => prev.map(s => s.id === slot.id ? {...s, name: e.target.value} : s))}
                       />
                       {slot.quiz && (
                         <div className="flex gap-2">
-                          <button onClick={() => shareSlot(slot)} title="Brian-share liên kết này" className="text-blue-500 hover:scale-110 transition-transform p-1"><Share2 size={18} /></button>
-                          <button onClick={() => { if(confirm('Xóa?')) setSlots(prev => prev.map(s => s.id === slot.id ? {...s, quiz:null, updatedAt:null, participants: []} : s)); }} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={18} /></button>
+                          <button onClick={() => shareSlot(slot)} className="text-blue-500 hover:scale-125 transition-transform p-1"><Share2 size={18} /></button>
+                          <button onClick={() => setSlots(prev => prev.map(s => s.id === slot.id ? {...s, quiz:null, updatedAt:null, participants: []} : s))} className="text-red-400 hover:text-red-600 transition-colors p-1"><Trash2 size={18} /></button>
                         </div>
                       )}
                     </div>
                     {slot.quiz ? (
-                      <div>
-                        <p className="text-slate-400 text-[10px] font-black mb-4 uppercase tracking-widest">{slot.quiz.questions.length} CÂU • {slot.participants.length} NGƯỜI THI</p>
-                        <div className="flex gap-2">
-                          <button onClick={() => { setQuiz(slot.quiz); setActiveSlotId(slot.id); setState('EDIT'); setShowLibrary(false); sounds.click(); }} className="flex-1 py-3 bg-slate-100 dark:bg-slate-900 rounded-xl font-black text-xs hover:bg-green-600 hover:text-white transition-all uppercase">Sửa</button>
-                          <button onClick={() => shareSlot(slot)} className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all uppercase flex items-center gap-2" title="Gửi liên kết Brian-share"><Share2 size={14} /> Share</button>
-                        </div>
+                      <div className="space-y-4">
+                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{slot.quiz.questions.length} CÂU • {slot.participants.length} THI</p>
+                        <button onClick={() => { setQuiz(slot.quiz); setActiveSlotId(slot.id); setState('EDIT'); setShowLibrary(false); sounds.click(); }} className="w-full py-4 bg-slate-100 dark:bg-slate-900 rounded-2xl font-black text-xs hover:bg-green-600 hover:text-white transition-all uppercase tracking-widest">Truy cập</button>
                       </div>
                     ) : (
-                      <div className="h-24 flex items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-xl text-slate-300 text-xs font-black uppercase tracking-widest italic">Trống</div>
+                      <div className="h-24 flex items-center justify-center border-4 border-dashed border-slate-50 dark:border-slate-700 rounded-3xl text-slate-300 text-[10px] font-black uppercase italic tracking-widest">Trống</div>
                     )}
                   </div>
                 ))}
@@ -275,71 +267,39 @@ const App: React.FC = () => {
         );
 
       case 'EDIT':
-        return quiz ? (
-          <QuizEditor 
-            quiz={quiz} 
-            slots={slots}
-            activeSlotId={activeSlotId}
-            onSave={(updated) => setQuiz(updated)}
-            onSaveToSlot={saveToSlot}
-            onStart={() => setState('NAME_ENTRY')}
-            onShare={(s) => shareSlot(s)}
-          />
-        ) : null;
+        return quiz ? <QuizEditor quiz={quiz} slots={slots} activeSlotId={activeSlotId} onSave={(updated) => setQuiz(updated)} onSaveToSlot={saveToSlot} onStart={() => setState('NAME_ENTRY')} onShare={shareSlot} /> : null;
 
       case 'NAME_ENTRY':
         return (
           <div className="max-w-xl mx-auto py-24 px-6 fade-in-up text-center">
-            <h2 className="text-5xl font-black text-slate-900 dark:text-white mb-12 tracking-tighter">BẮT ĐẦU DỰ THI</h2>
-            <div className="bg-white dark:bg-slate-800 p-12 rounded-[3rem] shadow-2xl border-4 border-slate-50 dark:border-slate-700">
-              <p className="text-slate-400 font-black text-xs uppercase tracking-widest mb-6">Nhập tên của bạn để lưu kết quả vào Slot</p>
+            <h2 className="text-5xl font-black text-slate-900 dark:text-white mb-10 tracking-tighter uppercase">Xác minh danh tính</h2>
+            <div className="bg-white dark:bg-slate-800 p-12 rounded-[3.5rem] shadow-2xl border-8 border-white dark:border-slate-700">
               <input 
-                type="text"
-                autoFocus
-                className="w-full p-8 bg-slate-50 dark:bg-slate-900 border-4 border-transparent focus:border-green-500 rounded-[2rem] text-3xl font-black text-center outline-none transition-all mb-8 shadow-inner text-slate-900 dark:text-white"
-                placeholder="Họ và tên..."
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && userName.trim() && setState('TAKE')}
+                type="text" autoFocus className="w-full p-8 bg-slate-50 dark:bg-slate-900 border-4 border-transparent focus:border-green-500 rounded-3xl text-3xl font-black text-center outline-none transition-all mb-8 shadow-inner dark:text-white"
+                placeholder="Tên của bạn..." value={userName} onChange={(e) => setUserName(e.target.value)}
               />
-              <button 
-                disabled={!userName.trim()}
-                onClick={() => { sounds.click(); if(userName.trim()) setState('TAKE'); }}
-                className="w-full py-8 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-[2rem] font-black text-2xl shadow-2xl transition-all"
-              >
-                VÀO PHÒNG THI
-              </button>
+              <button disabled={!userName.trim()} onClick={() => { sounds.click(); setState('TAKE'); }} className="w-full py-8 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-[2rem] font-black text-2xl shadow-xl hover:-translate-y-1 transition-all">BẮT ĐẦU THI</button>
             </div>
           </div>
         );
 
       case 'TAKE':
-        return quiz ? (
-          <QuizTake 
-            quiz={quiz}
-            userName={userName}
-            onFinish={handleFinish}
-            onExit={() => setState(activeSlotId ? 'HOME' : 'EDIT')}
-          />
-        ) : null;
+        return quiz ? <QuizTake quiz={quiz} userName={userName} onFinish={handleFinish} onExit={() => setState(activeSlotId ? 'HOME' : 'EDIT')} /> : null;
 
       case 'CALCULATING':
         return (
           <div className="max-w-2xl mx-auto py-32 px-6 text-center fade-in-up">
             <div className="relative w-56 h-56 mx-auto mb-16">
-               <div className="absolute inset-0 border-[12px] border-green-100 dark:border-slate-800 rounded-full"></div>
+               <div className="absolute inset-0 border-[12px] border-green-100 dark:border-slate-800 rounded-full animate-pulse"></div>
                <div className="absolute inset-0 border-[12px] border-green-500 rounded-full border-t-transparent animate-spin"></div>
-               <div className="absolute inset-0 flex items-center justify-center">
-                 <div className="animate-bounce">
-                  <KDTreeLogo size="md" />
-                 </div>
-               </div>
+               <div className="absolute inset-0 flex items-center justify-center animate-bounce-slow"><KDTreeLogo size="md" /></div>
             </div>
-            <h2 className="text-6xl font-black text-slate-900 dark:text-white mb-8 tracking-tighter uppercase">AI Đang Phân Tích...</h2>
-            <div className="flex justify-center gap-3 mb-10">
-              {[1,2,3,4,5,6].map(i => <div key={i} className="w-4 h-16 bg-green-500 rounded-full loading-bar" style={{animationDelay: `${i*0.15}s`}}></div>)}
+            <h2 className="text-6xl font-black text-slate-900 dark:text-white mb-8 tracking-tighter uppercase italic">Brian-AI Analysing...</h2>
+            <div className="flex justify-center items-end gap-3 h-20">
+              {[0.1, 0.2, 0.3, 0.4, 0.5, 0.6].map(d => (
+                <div key={d} className="w-4 bg-green-500 rounded-full loading-bar" style={{animationDelay: `${d}s`}}></div>
+              ))}
             </div>
-            <p className="text-slate-400 font-bold uppercase tracking-[0.5em] text-xs animate-pulse">KD-TREE ENGINE V5.0 • MOCK ANALYSIS</p>
           </div>
         );
 
@@ -351,88 +311,54 @@ const App: React.FC = () => {
         
         return (
           <div className="max-w-4xl mx-auto py-12 px-6 fade-in-up">
-            <div className="bg-white dark:bg-slate-800 rounded-[5rem] shadow-2xl p-16 border-8 border-white dark:border-slate-700 text-center relative overflow-hidden transition-all mb-12">
-               <div className={`absolute top-0 right-0 px-12 py-6 rounded-bl-[4rem] font-black tracking-widest text-2xl ${evalData.bg} ${evalData.color} border-b-4 border-l-4 border-white dark:border-slate-700`}>
-                XẾP LOẠI: {evalData.text.toUpperCase()}
-              </div>
-              <div className="mt-12">
-                <div className="text-[10rem] mb-12 select-none animate-bounce">{evalData.emoji}</div>
-                <h2 className="text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tighter leading-none">{userName}</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-[5rem] shadow-2xl p-16 border-8 border-white dark:border-slate-700 text-center relative mb-12 overflow-hidden">
+               <div className={`absolute top-0 right-0 px-12 py-6 rounded-bl-[4rem] font-black text-2xl ${evalData.bg} ${evalData.color} border-b-4 border-l-4 border-white dark:border-slate-700 uppercase tracking-widest`}>{evalData.text}</div>
+              <div className="mt-10">
+                <div className="text-[10rem] mb-12 animate-bounce select-none">{evalData.emoji}</div>
+                <h2 className="text-6xl font-black text-slate-900 dark:text-white mb-16">{userName}</h2>
                 <div className="grid grid-cols-2 gap-10 mb-16">
-                  <div className="p-12 bg-slate-50 dark:bg-slate-900/50 rounded-[4rem] border-4 border-white dark:border-slate-700 shadow-xl">
-                    <span className="block text-slate-400 font-black text-xs uppercase tracking-widest mb-6">Câu đúng</span>
-                    <span className="text-7xl font-black text-green-600">{result.score}<span className="text-3xl text-slate-200 dark:text-slate-700">/{result.total}</span></span>
+                  <div className="p-12 bg-slate-50 dark:bg-slate-900/50 rounded-[4rem] border-4 border-white dark:border-slate-700 shadow-inner group">
+                    <span className="block text-slate-400 font-black text-xs uppercase mb-4 tracking-widest">Câu đúng</span>
+                    <span className="text-8xl font-black text-green-600 group-hover:scale-110 transition-transform block">{result.score}/{result.total}</span>
                   </div>
-                  <div className="p-12 bg-slate-50 dark:bg-slate-900/50 rounded-[4rem] border-4 border-white dark:border-slate-700 shadow-xl">
-                    <span className="block text-slate-400 font-black text-xs uppercase tracking-widest mb-6">Thang điểm 10</span>
-                    <span className={`text-7xl font-black ${evalData.color}`}>{scoreTen}</span>
+                  <div className="p-12 bg-slate-50 dark:bg-slate-900/50 rounded-[4rem] border-4 border-white dark:border-slate-700 shadow-inner group">
+                    <span className="block text-slate-400 font-black text-xs uppercase mb-4 tracking-widest">Điểm số</span>
+                    <span className={`text-8xl font-black ${evalData.color} group-hover:scale-110 transition-transform block`}>{scoreTen}</span>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-8">
-                  <button onClick={() => { sounds.click(); setState('HOME'); }} className="flex-1 px-12 py-8 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-[2.5rem] font-black text-2xl transition-all shadow-xl">
-                    <Home size={28} className="inline mr-2" /> TRANG CHỦ
-                  </button>
-                  <button onClick={() => { sounds.click(); setState('TAKE'); }} className="flex-1 px-12 py-8 bg-green-600 hover:bg-green-700 text-white rounded-[2.5rem] font-black text-2xl shadow-2xl transition-all flex items-center justify-center gap-6 transform hover:-translate-y-2 group">
-                    <RotateCcw size={36} className="group-hover:animate-hover-rotate" /> THI LẠI
-                  </button>
+                <div className="flex gap-8">
+                  <button onClick={() => setState('HOME')} className="flex-1 py-8 bg-slate-100 dark:bg-slate-700 rounded-[2.5rem] font-black text-2xl hover:bg-slate-200 transition-all">TRANG CHỦ</button>
+                  <button onClick={() => setState('TAKE')} className="flex-1 py-8 bg-green-600 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:shadow-green-500/50 hover:-translate-y-1 transition-all">THI LẠI</button>
                 </div>
               </div>
             </div>
 
-            {/* BẢNG VÀNG DANH DỰ - HIỂN THỊ CHI TIẾT THEO YÊU CẦU */}
             {currentSlot && (
-              <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-xl p-12 border-4 border-slate-50 dark:border-slate-700 fade-in-up" style={{animationDelay: '0.4s'}}>
-                <div className="flex items-center gap-4 mb-10 pb-6 border-b dark:border-slate-700">
-                  <div className="p-4 bg-yellow-500 text-white rounded-2xl shadow-lg animate-pulse"><Trophy size={24} /></div>
+              <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-xl p-12 border-8 border-white dark:border-slate-700">
+                <div className="flex items-center gap-6 mb-10 pb-8 border-b-4 dark:border-slate-700">
+                  <Trophy className="text-yellow-500 animate-bounce" size={40} />
                   <div>
-                    <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Bảng Vàng Danh Dự</h3>
-                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Lịch sử bài tập: {currentSlot.quiz?.title}</p>
+                    <h3 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Bảng Vàng Danh Dự</h3>
+                    <p className="text-slate-400 font-black text-xs uppercase tracking-[0.3em]">Đề thi: {currentSlot.quiz?.title}</p>
                   </div>
                 </div>
-
-                {currentSlot.participants.length > 0 ? (
-                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 scrollbar-thin">
-                    {currentSlot.participants.map((p, idx) => {
-                      const pScore = Math.round((p.score / p.total) * 100) / 10;
-                      const pEval = getEvaluation(pScore);
-                      return (
-                        <div key={p.id} className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-transparent hover:border-green-400 transition-all group">
-                          <div className="flex items-center gap-6">
-                            <span className={`w-12 h-12 flex items-center justify-center rounded-xl font-black text-lg ${
-                              idx === 0 ? 'bg-yellow-400 text-white' : 
-                              idx === 1 ? 'bg-slate-300 text-slate-600' : 
-                              idx === 2 ? 'bg-orange-400 text-white' : 
-                              'bg-white dark:bg-slate-800 text-slate-400'
-                            }`}>
-                              {idx + 1}
-                            </span>
-                            <div className="flex flex-col">
-                              <p className="text-xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors">
-                                {p.name} <span className="text-slate-400 font-medium text-sm ml-2">— {currentSlot.quiz?.title}</span>
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Clock size={10} className="text-slate-400" />
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.completedAt}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                               {idx < 3 && <Sparkles size={16} className="text-yellow-500" />}
-                               <p className={`text-2xl font-black ${pEval.color}`}>{pScore}</p>
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.score}/{p.total} CÂU</p>
+                <div className="space-y-4">
+                  {currentSlot.participants.map((p, idx) => {
+                    const pScore = Math.round((p.score / p.total) * 100) / 10;
+                    return (
+                      <div key={p.id} className="flex items-center justify-between p-8 bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border-4 border-transparent hover:border-green-400 hover:translate-x-4 transition-all group">
+                        <div className="flex items-center gap-8">
+                          <span className={`w-16 h-16 flex items-center justify-center rounded-2xl font-black text-2xl ${idx === 0 ? 'bg-yellow-400 text-white shadow-lg animate-pulse' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>{idx + 1}</span>
+                          <div>
+                            <p className="text-2xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors">{p.name}</p>
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{p.completedAt}</p>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="py-20 text-center border-4 border-dashed border-slate-100 dark:border-slate-700 rounded-3xl">
-                    <Database size={48} className="mx-auto text-slate-200 dark:text-slate-700 mb-4 opacity-20" />
-                    <p className="text-slate-400 font-black text-sm uppercase tracking-widest">Chưa có ai ghi danh vào bảng vàng này!</p>
-                  </div>
-                )}
+                        <p className={`text-4xl font-black ${getEvaluation(pScore).color}`}>{pScore}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -443,101 +369,49 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 selection:bg-green-500 selection:text-white overflow-x-hidden bg-slate-50 dark:bg-[#020617] transition-colors duration-500">
-      <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800 transition-all duration-700">
-        <div className="max-w-7xl mx-auto px-8 h-32 flex items-center justify-between">
-          <div className="flex items-center gap-6 cursor-pointer group" onClick={() => { sounds.click(); if (currentUser) setState('HOME'); }}>
-            <KDTreeLogo size="md" />
-            <div className="flex flex-col">
-              <span className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white uppercase leading-none">Brian<span className="text-green-600">Quiz</span></span>
-              <span className="text-[10px] font-black text-slate-400 tracking-[0.6em] uppercase mt-1">KD-Tree Edition</span>
-            </div>
+    <div className="min-h-screen pb-24 bg-slate-50 dark:bg-[#020617] transition-colors duration-500">
+      <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl sticky top-0 z-50 border-b-4 dark:border-slate-800 h-32 flex items-center px-12 justify-between">
+        <div className="flex items-center gap-6 cursor-pointer group" onClick={() => currentUser && setState('HOME')}>
+          <KDTreeLogo size="md" />
+          <div className="flex flex-col">
+            <span className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white uppercase leading-none group-hover:text-green-600 transition-colors">Brian<span className="text-green-600 group-hover:text-slate-900 dark:group-hover:text-white">Quiz</span></span>
+            <span className="text-[10px] font-black text-slate-400 tracking-[0.5em] uppercase mt-1">Cloud Sync Engine</span>
           </div>
-          
-          <div className="flex items-center gap-4">
-            {state !== 'HOME' && state !== 'AUTH' && (
-              <button 
-                onClick={() => { sounds.click(); setState('HOME'); }}
-                className="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border-2 border-transparent hover:border-green-500 shadow-sm group"
-              >
-                <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-                <span className="hidden sm:inline">MENU CHÍNH</span>
-              </button>
-            )}
-
-            <button onClick={toggleDark} className="w-16 h-16 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-yellow-400 rounded-[2rem] transition-all hover:scale-110 border-4 border-white dark:border-slate-700 shadow-sm relative overflow-hidden group">
-               <div className={`transition-transform duration-500 ${isDark ? 'rotate-[360deg] scale-0' : 'rotate-0 scale-100'}`}><Moon size={32} /></div>
-               <div className={`absolute transition-transform duration-500 ${isDark ? 'rotate-0 scale-100' : 'rotate-[-360deg] scale-0'}`}><Sun size={32} /></div>
-            </button>
-          </div>
+        </div>
+        <div className="flex items-center gap-6">
+          <button onClick={toggleDark} className="w-16 h-16 flex items-center justify-center bg-slate-50 dark:bg-slate-800 rounded-[2rem] shadow-sm border-4 border-white dark:border-slate-700 hover:scale-110 transition-transform">
+             {isDark ? <Sun size={32} className="text-yellow-400 animate-hover-rotate" /> : <Moon size={32} className="text-slate-600 animate-hover-rotate" />}
+          </button>
         </div>
       </nav>
 
-      <main className="mt-16">{renderContent()}</main>
+      <main className="mt-12">{renderContent()}</main>
 
-      {/* BRIAN-SHARE IMPORT DIALOG - LUÔN HIỂN THỊ KHI CÓ DỮ LIỆU CHỜ, TRỪ KHI ĐANG THI */}
-      {pendingImport && state !== 'TAKE' && state !== 'CALCULATING' && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-2xl flex items-center justify-center p-6 fade-in">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[4rem] shadow-2xl border-8 border-white dark:border-slate-700 overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-green-500 to-purple-500"></div>
-            <div className="p-12 text-center">
-              <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-                <Zap size={48} className="animate-pulse" />
-              </div>
-              <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-2 tracking-tighter uppercase">Brian-share Detected!</h2>
-              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mb-10">Bạn vừa nhận được một gói dữ liệu bài tập</p>
-              
-              <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] mb-10 border-4 border-slate-100 dark:border-slate-700 shadow-xl group">
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2">Tiêu đề bài tập:</p>
-                <p className="text-4xl font-black text-blue-600 mb-4 group-hover:scale-105 transition-transform">{pendingImport.title}</p>
-                <div className="flex items-center justify-center gap-4">
-                  <span className="px-4 py-1.5 bg-blue-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest">
-                    {pendingImport.questions.length} CÂU HỎI
-                  </span>
-                  <span className="px-4 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest">
-                    MÃ HÓA UTF-8
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.3em] text-left px-4">Chọn nơi lưu trữ trên tài khoản của bạn:</p>
-                <div className="grid grid-cols-1 gap-4 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
-                  {slots.map(slot => (
-                    <button 
-                      key={slot.id}
-                      onClick={() => handleImportToSlot(slot.id)}
-                      className="group w-full p-6 bg-slate-50 dark:bg-slate-900 hover:bg-blue-600 border-4 border-transparent hover:border-white transition-all rounded-[2rem] flex items-center justify-between shadow-sm hover:shadow-2xl"
-                    >
-                      <div className="flex items-center gap-6">
-                        <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center font-black group-hover:text-blue-600 shadow-sm">{slot.id}</div>
-                        <div className="text-left">
-                          <p className="text-xl font-black text-slate-900 dark:text-white group-hover:text-white">{slot.name}</p>
-                          <p className={`text-[10px] font-black group-hover:text-blue-100 uppercase tracking-widest ${slot.quiz ? 'text-red-400' : 'text-slate-400'}`}>
-                            {slot.quiz ? `Đang chứa: ${slot.quiz.title}` : 'Slot trống — Sẵn sàng'}
-                          </p>
-                        </div>
-                      </div>
-                      <Download className="text-slate-300 group-hover:text-white group-hover:animate-bounce" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-12 flex flex-col gap-4">
-                <button 
-                  onClick={() => setPendingImport(null)}
-                  className="w-full py-4 text-slate-400 hover:text-red-500 font-black text-sm uppercase tracking-widest transition-colors flex items-center justify-center gap-2 border-2 border-transparent hover:border-red-100 rounded-2xl"
-                >
-                  <CloseIcon size={18} /> HỦY BỎ NHẬP DỮ LIỆU
-                </button>
-              </div>
+      {pendingImport && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-2xl flex items-center justify-center p-6">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-xl rounded-[4rem] shadow-2xl border-8 border-white dark:border-slate-700 p-12 text-center fade-in-up relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-blue-500 animate-pulse"></div>
+            <Zap size={60} className="mx-auto text-blue-500 mb-8 animate-bounce" />
+            <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-2 uppercase tracking-tighter">Cloud Signal Found!</h2>
+            <p className="text-slate-400 font-bold text-xs mb-10 uppercase tracking-widest">Đồng bộ đề thi từ đám mây Brian-share</p>
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[3rem] border-4 border-slate-100 dark:border-slate-800 mb-10 shadow-inner group">
+              <p className="text-4xl font-black text-blue-600 group-hover:scale-105 transition-transform">{pendingImport.title}</p>
             </div>
+            <div className="space-y-4">
+              {slots.map(slot => (
+                <button key={slot.id} onClick={() => handleImportToSlot(slot.id)} className="w-full p-6 bg-slate-50 dark:bg-slate-900 hover:bg-blue-600 hover:text-white border-4 border-transparent hover:border-white transition-all rounded-[2rem] flex items-center justify-between group">
+                  <div className="text-left">
+                    <p className="text-xl font-black">{slot.name}</p>
+                    <p className="text-[10px] opacity-60 uppercase font-black tracking-widest">{slot.quiz ? 'Ghi đè' : 'Slot trống'}</p>
+                  </div>
+                  <Download className="group-hover:animate-bounce" />
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setPendingImport(null)} className="mt-10 text-slate-400 hover:text-red-500 font-black text-xs uppercase tracking-widest">Hủy bỏ đồng bộ</button>
           </div>
         </div>
       )}
-
-      <footer className="mt-40 py-24 border-t border-slate-100 dark:border-slate-800 text-center text-slate-400 dark:text-slate-600 font-black text-xs tracking-[1em] uppercase">© 2024 BrianQuiz AI • Powered by Brian-share Protocol</footer>
     </div>
   );
 };
