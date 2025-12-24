@@ -10,7 +10,7 @@ import QuizEditor from './components/QuizEditor';
 import QuizTake from './components/QuizTake';
 import KDTreeLogo from './components/KDTreeLogo';
 import Auth from './components/Auth';
-import Settings from './components/Settings';
+import Settings from './components/Settings.tsx';
 
 const useSound = () => {
   const playTone = useCallback((freqs: number[], type: OscillatorType = 'sine', duration = 0.2, volume = 0.05) => {
@@ -100,7 +100,7 @@ const App: React.FC = () => {
       const pending = sessionStorage.getItem('brian_share_pending');
       if (pending) {
         try {
-          // Robust UTF-8 decoding for Shared Cloud Links
+          // Robust UTF-8 decoding for Cloud-Link
           const decoded = JSON.parse(decodeURIComponent(escape(atob(pending))));
           if (decoded && decoded.questions) {
             setPendingImport(decoded);
@@ -203,11 +203,11 @@ const App: React.FC = () => {
   const shareSlot = (slot: QuizSlot) => {
     if (!slot.quiz) return;
     try {
-      // Robust UTF-8 encoding for Cloud Sharing
+      // Robust UTF-8 encoding for Cloud-Link
       const quizData = btoa(unescape(encodeURIComponent(JSON.stringify(slot.quiz))));
       const url = `${window.location.origin}${window.location.pathname}?import=${quizData}`;
       navigator.clipboard.writeText(url);
-      alert('Brian-Share: Đã sao chép liên kết đám mây!');
+      alert('Brian-Share: Đã sao chép liên kết chia sẻ đám mây!');
       sounds.click();
     } catch (e) {}
   };
