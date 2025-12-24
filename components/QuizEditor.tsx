@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Question, QuestionType, QuizSession, QuizSlot } from '../types';
 import { Plus, Trash2, Save, Play, Clock, Database, ChevronDown, ChevronLeft, AlertTriangle, X, ArrowDown, AlertCircle, Sparkles } from 'lucide-react';
 import { generateAIQuestions } from '../services/geminiService';
-import LoadingSpinner from './LoadingSpinner';
+import LoadingSpinner from './LoadingSpinner.tsx';
 
 interface QuizEditorProps {
   quiz: QuizSession;
