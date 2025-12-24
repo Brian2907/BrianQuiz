@@ -166,7 +166,6 @@ const App: React.FC = () => {
     setResult({ score, total });
     setState('CALCULATING');
     
-    // Nếu không thi từ slot cụ thể, mặc định ghi nhận vào slot 1 để đảm bảo có bảng vàng
     const targetSlotId = activeSlotId || 1;
     
     const newParticipant: Participant = {
