@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   PlusCircle, ArrowRight, User as UserIcon, Moon, Sun, 
@@ -100,6 +99,7 @@ const App: React.FC = () => {
       const pending = sessionStorage.getItem('brian_share_pending');
       if (pending) {
         try {
+          // Robust UTF-8 decoding for Cloud-Link
           const decoded = JSON.parse(decodeURIComponent(escape(atob(pending))));
           if (decoded && decoded.questions) {
             setPendingImport(decoded);
@@ -202,6 +202,7 @@ const App: React.FC = () => {
   const shareSlot = (slot: QuizSlot) => {
     if (!slot.quiz) return;
     try {
+      // Robust UTF-8 encoding for Cloud-Link
       const quizData = btoa(unescape(encodeURIComponent(JSON.stringify(slot.quiz))));
       const url = `${window.location.origin}${window.location.pathname}?import=${quizData}`;
       navigator.clipboard.writeText(url);
@@ -470,7 +471,6 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-2xl flex items-center justify-center p-6">
           <div className="bg-white dark:bg-slate-800 w-full max-w-xl rounded-[4rem] shadow-2xl border-8 border-white dark:border-slate-700 p-12 text-center fade-in-up relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-blue-500 animate-pulse"></div>
-            {/* Fix: lowercase 'zap' changed to uppercase 'Zap' component */}
             <Zap size={60} className="mx-auto text-blue-500 mb-8 animate-bounce" />
             <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-2 uppercase tracking-tighter">Cloud Signal Found!</h2>
             <p className="text-slate-400 font-bold text-xs mb-10 uppercase tracking-widest">Đồng bộ đề thi từ đám mây Brian-Share</p>
