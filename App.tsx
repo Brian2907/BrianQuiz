@@ -9,7 +9,7 @@ import QuizEditor from './components/QuizEditor';
 import QuizTake from './components/QuizTake';
 import KDTreeLogo from './components/KDTreeLogo';
 import Auth from './components/Auth';
-import LoadingSpinner from './components/LoadingSpinner'; 
+import LoadingSpinner from './components/LoadingSpinner';
 import Settings from './components/Settings';
 
 const useSound = () => {
