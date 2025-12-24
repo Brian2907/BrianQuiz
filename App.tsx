@@ -11,6 +11,7 @@ import KDTreeLogo from './components/KDTreeLogo';
 import Auth from './components/Auth';
 import LoadingSpinner from './components/LoadingSpinner';
 import Settings from './components/Settings';
+
 const useSound = () => {
   const playTone = useCallback((freqs: number[], type: OscillatorType = 'sine', duration = 0.2, volume = 0.05) => {
     try {
