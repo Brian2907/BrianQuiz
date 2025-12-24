@@ -166,20 +166,22 @@ const App: React.FC = () => {
     setResult({ score, total });
     setState('CALCULATING');
     
-    if (activeSlotId) {
-      const newParticipant: Participant = {
-        id: crypto.randomUUID(),
-        name: userName || "Ẩn danh",
-        avatar: currentUser?.avatar,
-        score,
-        total,
-        completedAt: new Date().toLocaleString('vi-VN')
-      };
-      setSlots(prev => prev.map(s => s.id === activeSlotId ? {
-        ...s,
-        participants: [newParticipant, ...s.participants].slice(0, 100)
-      } : s));
-    }
+    // Nếu không thi từ slot cụ thể, mặc định ghi nhận vào slot 1 để đảm bảo có bảng vàng
+    const targetSlotId = activeSlotId || 1;
+    
+    const newParticipant: Participant = {
+      id: crypto.randomUUID(),
+      name: userName || "Ẩn danh",
+      avatar: currentUser?.avatar,
+      score,
+      total,
+      completedAt: new Date().toLocaleString('vi-VN')
+    };
+
+    setSlots(prev => prev.map(s => s.id === targetSlotId ? {
+      ...s,
+      participants: [newParticipant, ...s.participants].slice(0, 100)
+    } : s));
 
     let interval = setInterval(() => sounds.loading(), 1000);
     setTimeout(() => {
@@ -355,10 +357,10 @@ const App: React.FC = () => {
         if (!result) return null;
         const scoreTen = Math.round((result.score / result.total) * 100) / 10;
         const evalData = getEvaluation(scoreTen);
-        const currentSlot = slots.find(s => s.id === activeSlotId);
+        const leaderboardSlot = slots.find(s => s.id === (activeSlotId || 1));
         
         return (
-          <div className="max-w-4xl mx-auto py-12 px-6 fade-in-up space-y-12">
+          <div className="max-w-4xl mx-auto py-12 px-6 fade-in-up space-y-16">
             <div className="bg-white dark:bg-slate-800 rounded-[5rem] shadow-2xl p-16 border-8 border-white dark:border-slate-700 text-center relative overflow-hidden">
                <div className={`absolute top-0 right-0 px-12 py-6 rounded-bl-[4rem] font-black text-2xl ${evalData.bg} ${evalData.color} border-b-4 border-l-4 border-white dark:border-slate-700 uppercase tracking-widest`}>{evalData.text}</div>
               <div className="mt-10">
@@ -381,45 +383,51 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {currentSlot && (
+            {leaderboardSlot && (
               <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-xl p-12 border-8 border-white dark:border-slate-700 fade-in-up">
                 <div className="flex items-center gap-6 mb-10 pb-8 border-b-4 dark:border-slate-700">
                   <Trophy className="text-yellow-500 animate-bounce" size={40} />
                   <div>
                     <h3 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Bảng Vàng Danh Dự</h3>
-                    <p className="text-slate-400 font-black text-xs uppercase tracking-[0.3em]">Đề thi: {currentSlot.quiz?.title}</p>
+                    <p className="text-slate-400 font-black text-xs uppercase tracking-[0.3em]">Kho lưu trữ: {leaderboardSlot.name}</p>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  {currentSlot.participants.map((p, idx) => {
-                    const pScore = Math.round((p.score / p.total) * 100) / 10;
-                    return (
-                      <div key={p.id} className="flex items-center justify-between p-8 bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border-4 border-transparent hover:border-green-400 hover:translate-x-4 transition-all group">
-                        <div className="flex items-center gap-8">
-                          {/* RANKED AVATAR BORDERS: No numbers, just beautiful borders */}
-                          <div className={`w-20 h-20 rounded-3xl overflow-hidden border-[6px] flex items-center justify-center bg-white shadow-2xl transition-all group-hover:scale-110 group-hover:rotate-3 ${
-                            idx === 0 ? 'border-[#FFD700] ring-4 ring-yellow-200/50 animate-pulse' : 
-                            idx === 1 ? 'border-[#C0C0C0] ring-4 ring-slate-200/50' : 
-                            idx === 2 ? 'border-[#CD7F32] ring-4 ring-orange-200/50' : 'border-white dark:border-slate-700 shadow-sm'
-                          }`}>
-                            {p.avatar ? (
-                              <img src={p.avatar} className="w-full h-full object-cover" alt={p.name} />
-                            ) : (
-                              <UserIcon className="text-slate-300" size={40} />
-                            )}
+                {leaderboardSlot.participants.length > 0 ? (
+                  <div className="space-y-4">
+                    {leaderboardSlot.participants.map((p, idx) => {
+                      const pScore = Math.round((p.score / p.total) * 100) / 10;
+                      return (
+                        <div key={p.id} className="flex items-center justify-between p-8 bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border-4 border-transparent hover:border-green-400 hover:translate-x-4 transition-all group">
+                          <div className="flex items-center gap-8">
+                            <div className={`w-20 h-20 rounded-3xl overflow-hidden border-[6px] flex items-center justify-center bg-white shadow-2xl transition-all group-hover:scale-110 group-hover:rotate-3 ${
+                              idx === 0 ? 'border-[#FFD700] ring-4 ring-yellow-200/50 animate-pulse' : 
+                              idx === 1 ? 'border-[#C0C0C0] ring-4 ring-slate-200/50' : 
+                              idx === 2 ? 'border-[#CD7F32] ring-4 ring-orange-200/50' : 'border-white dark:border-slate-700 shadow-sm'
+                            }`}>
+                              {p.avatar ? (
+                                <img src={p.avatar} className="w-full h-full object-cover" alt={p.name} />
+                              ) : (
+                                <UserIcon className="text-slate-300" size={40} />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-3xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors uppercase tracking-tighter">{p.name}</p>
+                              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{p.completedAt}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-3xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors uppercase tracking-tighter">{p.name}</p>
-                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{p.completedAt}</p>
+                          <div className="flex items-center gap-6">
+                             <p className={`text-5xl font-black ${getEvaluation(pScore).color}`}>{pScore}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-6">
-                           <p className={`text-5xl font-black ${getEvaluation(pScore).color}`}>{pScore}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-20 text-center border-4 border-dashed border-slate-100 dark:border-slate-700 rounded-[2rem]">
+                    <Users size={48} className="mx-auto text-slate-200 mb-4" />
+                    <p className="text-slate-300 font-black uppercase tracking-widest">Chưa có người tham gia thi đấu</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
