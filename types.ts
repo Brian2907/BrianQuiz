@@ -23,6 +23,7 @@ export interface QuizSession {
 export interface Participant {
   id: string;
   name: string;
+  avatar?: string; // Base64 string from User avatar
   score: number;
   total: number;
   completedAt: string;
@@ -41,6 +42,7 @@ export interface User {
   id: string;
   username: string;
   password?: string;
+  avatar?: string; // Base64 string for uploaded image
 }
 
 export type AppState = 'AUTH' | 'HOME' | 'EDIT' | 'SETTINGS' | 'NAME_ENTRY' | 'TAKE' | 'CALCULATING' | 'RESULT';

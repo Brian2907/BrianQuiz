@@ -1,16 +1,19 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   PlusCircle, ArrowRight, BrainCircuit, User as UserIcon, Moon, Sun, 
   Clock, CheckCircle, RotateCcw, Database, Edit3, Save, Trash2, 
   Home, Loader2, Sparkles, Share2, LogOut, ShieldCheck, Trophy, Users,
-  ChevronLeft, AlertCircle, Download, X as CloseIcon, Copy, Zap, Terminal
+  ChevronLeft, AlertCircle, Download, X as CloseIcon, Copy, Zap, Terminal,
+  Settings as SettingsIcon, Palette
 } from 'lucide-react';
 import { AppState, QuizSession, QuizSlot, User, Participant } from './types';
 import QuizEditor from './components/QuizEditor';
 import QuizTake from './components/QuizTake';
 import KDTreeLogo from './components/KDTreeLogo';
 import Auth from './components/Auth';
+import Settings from './components/Settings';
+import Modal from './components/Modal';
 
 const useSound = () => {
   const playTone = useCallback((freqs: number[], type: OscillatorType = 'sine', duration = 0.2, volume = 0.05) => {
@@ -55,6 +58,7 @@ const getEvaluation = (scoreTen: number) => {
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>('AUTH');
+  const [previousState, setPreviousState] = useState<AppState | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [quiz, setQuiz] = useState<QuizSession | null>(null);
   const [userName, setUserName] = useState('');
@@ -81,7 +85,11 @@ const App: React.FC = () => {
 
     const savedUser = localStorage.getItem('brianquiz_user');
     if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
+      const parsedUser = JSON.parse(savedUser);
+      const usersStr = localStorage.getItem('brianquiz_users_db') || '[]';
+      const users: User[] = JSON.parse(usersStr);
+      const dbUser = users.find(u => u.id === parsedUser.id);
+      setCurrentUser(dbUser || parsedUser);
       setState('HOME');
     }
   }, []);
@@ -127,6 +135,19 @@ const App: React.FC = () => {
     sounds.click();
   };
 
+  const openSettings = () => {
+    if (!currentUser || state === 'SETTINGS') return;
+    sounds.click();
+    setPreviousState(state);
+    setState('SETTINGS');
+  };
+
+  const closeSettings = () => {
+    sounds.click();
+    const targetState = previousState === 'SETTINGS' ? 'HOME' : (previousState || 'HOME');
+    setState(targetState);
+  };
+
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('brianquiz_user', JSON.stringify(user));
@@ -149,6 +170,7 @@ const App: React.FC = () => {
       const newParticipant: Participant = {
         id: crypto.randomUUID(),
         name: userName || "Ẩn danh",
+        avatar: currentUser?.avatar,
         score,
         total,
         completedAt: new Date().toLocaleString('vi-VN')
@@ -205,8 +227,11 @@ const App: React.FC = () => {
         return (
           <div className="max-w-4xl mx-auto py-20 px-6 fade-in-up text-center">
             <div className="flex justify-center items-center gap-4 mb-8">
-               <div className="flex items-center gap-2 px-6 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-xs font-black border border-blue-200 dark:border-blue-800 shadow-sm animate-pulse">
-                <ShieldCheck size={14} /> {currentUser?.username.toUpperCase()}
+               <div className="flex items-center gap-3 px-6 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-xs font-black border border-blue-200 dark:border-blue-800 shadow-sm">
+                <div className="w-6 h-6 rounded-full overflow-hidden bg-white">
+                  {currentUser?.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : <UserIcon size={14} className="m-1" />}
+                </div>
+                {currentUser?.username.toUpperCase()}
               </div>
               <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
                 <LogOut size={20} />
@@ -280,6 +305,9 @@ const App: React.FC = () => {
           />
         ) : null;
 
+      case 'SETTINGS':
+        return currentUser ? <Settings user={currentUser} onUpdate={setCurrentUser} onBack={closeSettings} /> : null;
+
       case 'NAME_ENTRY':
         return (
           <div className="max-w-xl mx-auto py-16 px-6 space-y-8 fade-in-up text-center">
@@ -297,7 +325,7 @@ const App: React.FC = () => {
                 placeholder="Tên của bạn..." value={userName} onChange={(e) => setUserName(e.target.value)}
               />
               <button disabled={!userName.trim()} onClick={() => { sounds.click(); setState('TAKE'); }} className="w-full py-8 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:-translate-y-2 hover:shadow-green-500/50 transition-all flex items-center justify-center gap-4 group">
-                BẮT ĐẦU THI <ArrowRight size={32} className="group-hover:translate-x-3 transition-transform" />
+                BẮT ĐẦI THI <ArrowRight size={32} className="group-hover:translate-x-3 transition-transform" />
               </button>
             </div>
           </div>
@@ -330,8 +358,8 @@ const App: React.FC = () => {
         const currentSlot = slots.find(s => s.id === activeSlotId);
         
         return (
-          <div className="max-w-4xl mx-auto py-12 px-6 fade-in-up">
-            <div className="bg-white dark:bg-slate-800 rounded-[5rem] shadow-2xl p-16 border-8 border-white dark:border-slate-700 text-center relative mb-12 overflow-hidden">
+          <div className="max-w-4xl mx-auto py-12 px-6 fade-in-up space-y-12">
+            <div className="bg-white dark:bg-slate-800 rounded-[5rem] shadow-2xl p-16 border-8 border-white dark:border-slate-700 text-center relative overflow-hidden">
                <div className={`absolute top-0 right-0 px-12 py-6 rounded-bl-[4rem] font-black text-2xl ${evalData.bg} ${evalData.color} border-b-4 border-l-4 border-white dark:border-slate-700 uppercase tracking-widest`}>{evalData.text}</div>
               <div className="mt-10">
                 <div className="text-[10rem] mb-12 animate-bounce select-none">{evalData.emoji}</div>
@@ -354,7 +382,7 @@ const App: React.FC = () => {
             </div>
 
             {currentSlot && (
-              <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-xl p-12 border-8 border-white dark:border-slate-700">
+              <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-xl p-12 border-8 border-white dark:border-slate-700 fade-in-up">
                 <div className="flex items-center gap-6 mb-10 pb-8 border-b-4 dark:border-slate-700">
                   <Trophy className="text-yellow-500 animate-bounce" size={40} />
                   <div>
@@ -368,13 +396,26 @@ const App: React.FC = () => {
                     return (
                       <div key={p.id} className="flex items-center justify-between p-8 bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border-4 border-transparent hover:border-green-400 hover:translate-x-4 transition-all group">
                         <div className="flex items-center gap-8">
-                          <span className={`w-16 h-16 flex items-center justify-center rounded-2xl font-black text-2xl ${idx === 0 ? 'bg-yellow-400 text-white shadow-lg animate-pulse' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>{idx + 1}</span>
+                          {/* RANKED AVATAR BORDERS: No numbers, just beautiful borders */}
+                          <div className={`w-20 h-20 rounded-3xl overflow-hidden border-[6px] flex items-center justify-center bg-white shadow-2xl transition-all group-hover:scale-110 group-hover:rotate-3 ${
+                            idx === 0 ? 'border-[#FFD700] ring-4 ring-yellow-200/50 animate-pulse' : 
+                            idx === 1 ? 'border-[#C0C0C0] ring-4 ring-slate-200/50' : 
+                            idx === 2 ? 'border-[#CD7F32] ring-4 ring-orange-200/50' : 'border-white dark:border-slate-700 shadow-sm'
+                          }`}>
+                            {p.avatar ? (
+                              <img src={p.avatar} className="w-full h-full object-cover" alt={p.name} />
+                            ) : (
+                              <UserIcon className="text-slate-300" size={40} />
+                            )}
+                          </div>
                           <div>
-                            <p className="text-2xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors">{p.name}</p>
+                            <p className="text-3xl font-black text-slate-800 dark:text-white group-hover:text-green-600 transition-colors uppercase tracking-tighter">{p.name}</p>
                             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{p.completedAt}</p>
                           </div>
                         </div>
-                        <p className={`text-4xl font-black ${getEvaluation(pScore).color}`}>{pScore}</p>
+                        <div className="flex items-center gap-6">
+                           <p className={`text-5xl font-black ${getEvaluation(pScore).color}`}>{pScore}</p>
+                        </div>
                       </div>
                     );
                   })}
@@ -398,7 +439,21 @@ const App: React.FC = () => {
             <span className="text-[10px] font-black text-slate-400 tracking-[0.5em] uppercase mt-1">Cloud Sync Engine</span>
           </div>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={openSettings} 
+            disabled={!currentUser}
+            title={!currentUser ? "Đăng nhập để vào cài đặt" : "Cài đặt hệ thống"}
+            className={`w-16 h-16 flex items-center justify-center rounded-[2rem] shadow-sm border-4 transition-all group ${
+              state === 'SETTINGS' 
+              ? 'bg-green-600 border-green-500' 
+              : !currentUser 
+                ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-50 cursor-not-allowed'
+                : 'bg-slate-50 dark:bg-slate-800 border-white dark:border-slate-700 hover:scale-110'
+            }`}
+          >
+             <SettingsIcon size={32} className={`${state === 'SETTINGS' ? 'text-white rotate-180' : 'text-slate-400 group-hover:text-green-600 group-hover:rotate-180'} transition-all duration-700`} />
+          </button>
           <button onClick={toggleDark} className="w-16 h-16 flex items-center justify-center bg-slate-50 dark:bg-slate-800 rounded-[2rem] shadow-sm border-4 border-white dark:border-slate-700 hover:scale-110 transition-transform">
              {isDark ? <Sun size={32} className="text-yellow-400 animate-hover-rotate" /> : <Moon size={32} className="text-slate-600 animate-hover-rotate" />}
           </button>
