@@ -1,11 +1,9 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  PlusCircle, ArrowRight, BrainCircuit, User as UserIcon, Moon, Sun, 
-  Clock, CheckCircle, RotateCcw, Database, Edit3, Save, Trash2, 
-  Home, Loader2, Sparkles, Share2, LogOut, ShieldCheck, Trophy, Users,
-  ChevronLeft, AlertCircle, Download, X as CloseIcon, Copy, Zap, Terminal,
-  Settings as SettingsIcon, Palette
+  PlusCircle, ArrowRight, User as UserIcon, Moon, Sun, 
+  Clock, Database, Trash2, Share2, LogOut, Trophy, Users,
+  ChevronLeft, Download, Zap, Settings as SettingsIcon
 } from 'lucide-react';
 import { AppState, QuizSession, QuizSlot, User, Participant } from './types';
 import QuizEditor from './components/QuizEditor';
@@ -13,7 +11,6 @@ import QuizTake from './components/QuizTake';
 import KDTreeLogo from './components/KDTreeLogo';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
-import Modal from './components/Modal';
 
 const useSound = () => {
   const playTone = useCallback((freqs: number[], type: OscillatorType = 'sine', duration = 0.2, volume = 0.05) => {
@@ -103,6 +100,7 @@ const App: React.FC = () => {
       const pending = sessionStorage.getItem('brian_share_pending');
       if (pending) {
         try {
+          // Robust UTF-8 decoding for Shared Cloud Links
           const decoded = JSON.parse(decodeURIComponent(escape(atob(pending))));
           if (decoded && decoded.questions) {
             setPendingImport(decoded);
@@ -205,10 +203,11 @@ const App: React.FC = () => {
   const shareSlot = (slot: QuizSlot) => {
     if (!slot.quiz) return;
     try {
+      // Robust UTF-8 encoding for Cloud Sharing
       const quizData = btoa(unescape(encodeURIComponent(JSON.stringify(slot.quiz))));
       const url = `${window.location.origin}${window.location.pathname}?import=${quizData}`;
       navigator.clipboard.writeText(url);
-      alert('Brian-share: Đã sao chép liên kết đám mây!');
+      alert('Brian-Share: Đã sao chép liên kết đám mây!');
       sounds.click();
     } catch (e) {}
   };
@@ -272,7 +271,7 @@ const App: React.FC = () => {
                       />
                       {slot.quiz && (
                         <div className="flex gap-2">
-                          <button onClick={() => shareSlot(slot)} className="text-blue-500 hover:scale-125 transition-transform p-1"><Share2 size={18} /></button>
+                          <button onClick={() => shareSlot(slot)} className="text-blue-500 hover:scale-125 transition-transform p-1" title="Chia sẻ qua Cloud-Link"><Share2 size={18} /></button>
                           <button onClick={() => setSlots(prev => prev.map(s => s.id === slot.id ? {...s, quiz:null, updatedAt:null, participants: []} : s))} className="text-red-400 hover:text-red-600 transition-colors p-1"><Trash2 size={18} /></button>
                         </div>
                       )}
@@ -326,7 +325,7 @@ const App: React.FC = () => {
                 placeholder="Tên của bạn..." value={userName} onChange={(e) => setUserName(e.target.value)}
               />
               <button disabled={!userName.trim()} onClick={() => { sounds.click(); setState('TAKE'); }} className="w-full py-8 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:-translate-y-2 hover:shadow-green-500/50 transition-all flex items-center justify-center gap-4 group">
-                BẮT ĐẦI THI <ArrowRight size={32} className="group-hover:translate-x-3 transition-transform" />
+                BẮT ĐẦU THI <ArrowRight size={32} className="group-hover:translate-x-3 transition-transform" />
               </button>
             </div>
           </div>
@@ -343,7 +342,7 @@ const App: React.FC = () => {
                <div className="absolute inset-0 border-[12px] border-green-500 rounded-full border-t-transparent animate-spin"></div>
                <div className="absolute inset-0 flex items-center justify-center animate-bounce-slow"><KDTreeLogo size="md" /></div>
             </div>
-            <h2 className="text-6xl font-black text-slate-900 dark:text-white mb-8 tracking-tighter uppercase italic">Brian-AI Analysing...</h2>
+            <h2 className="text-6xl font-black text-slate-900 dark:text-white mb-8 tracking-tighter uppercase italic">Brian-AI Analyzing...</h2>
             <div className="flex justify-center items-end gap-3 h-20">
               {[0.1, 0.2, 0.3, 0.4, 0.5, 0.6].map(d => (
                 <div key={d} className="w-4 bg-green-500 rounded-full loading-bar" style={{animationDelay: `${d}s`}}></div>
@@ -475,7 +474,7 @@ const App: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-2 bg-blue-500 animate-pulse"></div>
             <Zap size={60} className="mx-auto text-blue-500 mb-8 animate-bounce" />
             <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-2 uppercase tracking-tighter">Cloud Signal Found!</h2>
-            <p className="text-slate-400 font-bold text-xs mb-10 uppercase tracking-widest">Đồng bộ đề thi từ đám mây Brian-share</p>
+            <p className="text-slate-400 font-bold text-xs mb-10 uppercase tracking-widest">Đồng bộ đề thi từ đám mây Brian-Share</p>
             <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[3rem] border-4 border-slate-100 dark:border-slate-800 mb-10 shadow-inner group">
               <p className="text-4xl font-black text-blue-600 group-hover:scale-105 transition-transform">{pendingImport.title}</p>
             </div>

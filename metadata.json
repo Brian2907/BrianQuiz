@@ -1,7 +1,6 @@
+
 {
-  "name": "Copy of BrianQuiz",
-  "description": "Một trang Web nhỏ cho phép tạo các bài kiểm tra nhỏ cho chính bản thân bạn - đang trong quá trình phát triển 💗",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "name": "BrianQuiz",
+  "description": "Nền tảng thi trắc nghiệm thông minh với đồng bộ hóa đám mây tối ưu.",
+  "requestFramePermissions": []
 }
