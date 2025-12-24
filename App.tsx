@@ -10,7 +10,7 @@ import QuizEditor from './components/QuizEditor';
 import QuizTake from './components/QuizTake';
 import KDTreeLogo from './components/KDTreeLogo';
 import Auth from './components/Auth';
-import Settings from './components/Settings.tsx';
+import Settings from './components/Settings';
 
 const useSound = () => {
   const playTone = useCallback((freqs: number[], type: OscillatorType = 'sine', duration = 0.2, volume = 0.05) => {
